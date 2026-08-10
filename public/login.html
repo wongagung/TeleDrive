@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Masuk — Telegram Drive</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <h1>Telegram Drive</h1>
+      <div class="tabs">
+        <button id="tabLogin" class="tab active">Login</button>
+        <button id="tabRegister" class="tab">Daftar</button>
+      </div>
+      <form id="authForm">
+        <input type="text" id="username" placeholder="Username" required autocomplete="username" />
+        <input type="password" id="password" placeholder="Password" required autocomplete="current-password" />
+        <button type="submit" id="submitBtn">Masuk</button>
+      </form>
+      <p id="msg" class="msg"></p>
+    </div>
+  </div>
+<script src="login.js"></script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Telegram Drive</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>📁 Telegram Drive</h1>
+    <div class="topbar-right">
+      <span id="whoami"></span>
+      <button id="logoutBtn">Keluar</button>
+    </div>
+  </header>
+
+  <main class="drive-wrap">
+    <div class="toolbar">
+      <nav id="breadcrumb" class="breadcrumb"></nav>
+      <div class="actions">
+        <button id="newFolderBtn">+ Folder</button>
+        <label class="upload-btn">
+          ⬆ Upload
+          <input type="file" id="fileInput" hidden />
+        </label>
+      </div>
+    </div>
+
+    <div id="uploadProgress" class="upload-progress" hidden>
+      <div class="bar"><div id="uploadBar" class="bar-fill"></div></div>
+      <span id="uploadStatus"></span>
+    </div>
+
+    <table class="drive-table">
+      <thead>
+        <tr><th>Nama</th><th>Ukuran</th><th>Tanggal</th><th></th></tr>
+      </thead>
+      <tbody id="listBody"></tbody>
+    </table>
+    <p id="emptyMsg" class="empty" hidden>Folder ini kosong.</p>
+  </main>
+
+<script src="app.js"></script>
+</body>
+</html>

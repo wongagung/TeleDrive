@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
+const db = require('./db');
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const GROUP_ID = process.env.GROUP_ID;
@@ -11,25 +12,101 @@ if (!BOT_TOKEN || !GROUP_ID) {
   console.warn('[telegram.js] BOT_TOKEN / GROUP_ID belum di-set di .env');
 }
 
+// Kategori file yang didukung -> nama & ikon topic di grup Telegram.
+// Tiap kategori otomatis dapat satu Topic (thread) terpisah supaya
+// langsung terlihat pengelompokannya begitu buka grup di Telegram.
+const CATEGORIES = {
+  dokumen: { label: '📄 Dokumen' },
+  gambar: { label: '🖼️ Gambar' },
+  video: { label: '🎬 Video' },
+  audio: { label: '🎵 Audio' },
+  arsip: { label: '🗜️ Arsip' },
+  lainnya: { label: '📦 Lainnya' },
+};
+
+const EXT_MAP = {
+  // dokumen
+  pdf: 'dokumen', doc: 'dokumen', docx: 'dokumen', xls: 'dokumen', xlsx: 'dokumen',
+  ppt: 'dokumen', pptx: 'dokumen', txt: 'dokumen', csv: 'dokumen', odt: 'dokumen',
+  // gambar
+  jpg: 'gambar', jpeg: 'gambar', png: 'gambar', gif: 'gambar', webp: 'gambar',
+  svg: 'gambar', bmp: 'gambar', heic: 'gambar',
+  // video
+  mp4: 'video', mkv: 'video', mov: 'video', avi: 'video', webm: 'video', flv: 'video',
+  // audio
+  mp3: 'audio', wav: 'audio', ogg: 'audio', flac: 'audio', m4a: 'audio', aac: 'audio',
+  // arsip
+  zip: 'arsip', rar: 'arsip', '7z': 'arsip', tar: 'arsip', gz: 'arsip',
+};
+
 /**
- * Upload satu chunk (file yang sudah tersimpan di disk lokal) ke grup Telegram.
- * Karena Local Bot API Server jalan di mesin yang sama, kita kirim path lokal
- * langsung (didukung khusus oleh Local Bot API Server, jauh lebih cepat
- * daripada multipart upload biasa).
+ * Tentukan kategori file berdasarkan ekstensi nama file (fallback: mime type).
+ */
+function classifyCategory(originalName, mimeType) {
+  const ext = (path.extname(originalName || '').slice(1) || '').toLowerCase();
+  if (EXT_MAP[ext]) return EXT_MAP[ext];
+
+  if (mimeType) {
+    if (mimeType.startsWith('image/')) return 'gambar';
+    if (mimeType.startsWith('video/')) return 'video';
+    if (mimeType.startsWith('audio/')) return 'audio';
+    if (mimeType === 'application/pdf') return 'dokumen';
+    if (mimeType.includes('zip') || mimeType.includes('compressed')) return 'arsip';
+  }
+  return 'lainnya';
+}
+
+/**
+ * Ambil thread_id topic Telegram untuk kategori tertentu. Kalau belum ada,
+ * buat topic baru di grup (butuh grup dalam mode Forum + bot admin dengan
+ * izin "Manage Topics"), lalu cache di DB supaya tidak buat topic berulang.
+ */
+async function getOrCreateTopic(category) {
+  const cached = db.prepare('SELECT thread_id FROM telegram_topics WHERE category = ?').get(category);
+  if (cached) return cached.thread_id;
+
+  const meta = CATEGORIES[category] || CATEGORIES.lainnya;
+  const form = new URLSearchParams();
+  form.append('chat_id', GROUP_ID);
+  form.append('name', meta.label);
+
+  const res = await fetch(`${BASE}/createForumTopic`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: form,
+  });
+  const data = await res.json();
+
+  if (!data.ok) {
+    throw new Error(
+      `Gagal buat Topic Telegram untuk kategori "${category}": ${data.description || JSON.stringify(data)}. ` +
+      `Pastikan grup sudah diaktifkan sebagai Forum (Topics) dan bot adalah admin dengan izin "Manage Topics".`
+    );
+  }
+
+  const threadId = data.result.message_thread_id;
+  db.prepare('INSERT INTO telegram_topics (category, thread_id) VALUES (?, ?)').run(category, threadId);
+  return threadId;
+}
+
+/**
+ * Upload satu chunk (file di disk lokal) ke grup Telegram, di dalam Topic
+ * sesuai kategorinya. Karena Local Bot API Server jalan di mesin yang sama,
+ * kita kirim path lokal langsung (jauh lebih cepat daripada multipart).
  *
- * @param {string} localFilePath - path absolut ke file di disk
- * @param {string} displayName - nama file yang ditampilkan di Telegram
+ * @param {string} localFilePath
+ * @param {string} displayName
+ * @param {number} [threadId] - message_thread_id topic tujuan (opsional)
  * @returns {Promise<{file_id: string, file_size: number, message_id: number}>}
  */
-async function uploadChunk(localFilePath, displayName) {
+async function uploadChunk(localFilePath, displayName, threadId) {
   const absPath = path.resolve(localFilePath);
 
   const form = new URLSearchParams();
   form.append('chat_id', GROUP_ID);
-  // Local Bot API Server: jika path file readable oleh server (sama mesin),
-  // bisa dikirim sebagai string path langsung.
   form.append('document', absPath);
   form.append('caption', displayName);
+  if (threadId) form.append('message_thread_id', threadId);
 
   const res = await fetch(`${BASE}/sendDocument`, {
     method: 'POST',
@@ -51,9 +128,15 @@ async function uploadChunk(localFilePath, displayName) {
 }
 
 /**
- * Ambil path lokal file dari Telegram berdasarkan file_id.
- * Dengan Local Bot API Server (--local), file_path yang dikembalikan
- * adalah path absolut di disk mesin ini — bisa langsung dibaca dengan fs.
+ * Ambil path lokal file dari Telegram berdasarkan file_id. Dengan Local Bot
+ * API Server (--local), file_path yang dikembalikan adalah path absolut di
+ * disk mesin ini — bisa langsung dibaca dengan fs.
+ *
+ * PENTING: Local Bot API Server MENYIMPAN salinan file ini di direktori
+ * --dir miliknya sendiri (bukan cuma numpang lewat). Ini konsumsi disk VM
+ * yang terpisah dari TMP_DIR aplikasi ini, dan tidak dibersihkan otomatis
+ * oleh Local Bot API Server. Jalankan skrip cleanup (lihat README) secara
+ * berkala supaya disk VM tidak habis.
  *
  * @param {string} fileId
  * @returns {Promise<string>} path absolut ke file di disk
@@ -67,8 +150,6 @@ async function getLocalFilePath(fileId) {
 
   const filePath = data.result.file_path;
 
-  // Jika Local API dijalankan dengan --local, file_path sudah path absolut.
-  // Kalau bukan (mode non-local), kita perlu download lewat HTTP endpoint /file/.
   if (fs.existsSync(filePath)) {
     return filePath;
   }
@@ -104,4 +185,11 @@ async function deleteMessage(messageId) {
   }
 }
 
-module.exports = { uploadChunk, getLocalFilePath, deleteMessage };
+module.exports = {
+  uploadChunk,
+  getLocalFilePath,
+  deleteMessage,
+  classifyCategory,
+  getOrCreateTopic,
+  CATEGORIES,
+};

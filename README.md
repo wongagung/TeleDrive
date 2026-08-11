@@ -7,12 +7,29 @@ dengan chunking otomatis di level aplikasi untuk file di atas itu.
 ## Cara Kerja Singkat
 
 ```
-Browser  →  Express (JWT auth, SQLite metadata)  →  Local Bot API Server (:8081)  →  Grup Telegram
+Browser  →  Express (JWT auth, SQLite metadata)  →  Local Bot API Server (:8081)  →  Grup Telegram (Forum + Topics)
 ```
 
-- File besar dipecah jadi beberapa bagian (default 1900MB/bagian) sebelum dikirim.
-- Metadata (nama, folder, urutan chunk, file_id Telegram) disimpan di SQLite — **bukan** di Telegram.
-- Saat download, backend narik tiap chunk balik dari Telegram lalu di-stream gabung ke browser.
+- Upload dilakukan **resumable**: file dipecah jadi block kecil (default 8MB) di browser, diupload
+  satu-satu ke server. Kalau koneksi putus di tengah jalan, upload bisa dilanjut dari block terakhir
+  yang berhasil — tidak perlu ulang dari nol.
+- Setelah semua block diterima, server gabung jadi satu file utuh, lalu (kalau ukurannya besar)
+  dipecah lagi jadi bagian ≤2000MB untuk dikirim ke Telegram (chunking level Telegram, terpisah
+  dari chunking resumable di atas).
+- Tiap file otomatis dikategorikan (Dokumen/Gambar/Video/Audio/Arsip/Lainnya) dan dikirim ke
+  **Topic** (thread) Telegram sesuai kategorinya — jadi begitu buka grup di Telegram, semua Gambar
+  ada di satu thread, semua Video di thread lain, dst. Topic dibuat otomatis sekali per kategori.
+- Metadata (nama, folder, kategori, urutan chunk, file_id Telegram) disimpan di SQLite — **bukan** di Telegram.
+- Preview gambar/PDF langsung di browser tanpa perlu download filenya dulu.
+
+## PENTING: Disk VM Ikut Terpakai, Bukan Cuma Telegram
+
+Local Bot API Server (mode `--local`) **menyimpan salinan tiap file yang lewat** (upload maupun
+preview/download) di direktori `--dir` miliknya sendiri di disk VM — ini terpisah dari `TMP_DIR`
+aplikasi ini, dan **tidak dibersihkan otomatis**. Kalau dibiarkan, disk VM bisa penuh meski data
+aslinya aman di Telegram. Jalankan `deploy/cleanup-telegram-cache.sh` secara berkala (lihat bagian
+"Setup Cron Cleanup" di bawah) — aman dihapus kapan saja karena akan didownload ulang otomatis
+dari Telegram kalau memang diminta lagi.
 
 ## Keamanan
 
@@ -67,12 +84,14 @@ Yang **masih jadi tanggung jawab kamu** saat deploy, bukan sesuatu yang bisa dit
 ## 1. Setup Bot Telegram
 
 1. Buat bot lewat [@BotFather](https://t.me/BotFather) → dapat `BOT_TOKEN`.
-2. Buat grup baru di Telegram, invite bot ke grup itu, **jadikan bot admin** (supaya bisa
-   `deleteMessage` saat file dihapus dari drive).
-3. Dapatkan `GROUP_ID`: forward salah satu pesan dari grup ke [@RawDataBot](https://t.me/RawDataBot),
+2. Buat grup baru di Telegram, invite bot ke grup itu, **jadikan bot admin**.
+3. **Aktifkan mode Forum/Topics di grup**: buka pengaturan grup → "Topics" → aktifkan. Ini WAJIB
+   supaya fitur "Topic per kategori" jalan — tanpa ini, `createForumTopic` akan gagal.
+4. Beri bot izin admin **"Manage Topics"** dan **"Delete Messages"** (untuk fitur hapus file).
+5. Dapatkan `GROUP_ID`: forward salah satu pesan dari grup ke [@RawDataBot](https://t.me/RawDataBot),
    atau tambahkan [@userinfobot](https://t.me/userinfobot) ke grup sebentar. ID grup biasanya
    berupa angka negatif, contoh `-1001234567890`.
-4. Dapatkan `api_id` dan `api_hash` di https://my.telegram.org/apps (ini WAJIB untuk Local Bot API
+6. Dapatkan `api_id` dan `api_hash` di https://my.telegram.org/apps (ini WAJIB untuk Local Bot API
    Server, beda dari `BOT_TOKEN`).
 
 ## 2. Build & Jalankan Local Bot API Server (di VM Oracle kamu)
@@ -205,40 +224,66 @@ Buka `https://drive.domainkamu.com/login.html`, daftar akun pertama. Setelah itu
 daftar sembarangan — tambahkan user baru manual lewat endpoint register sekali pakai, atau
 buka registrasi sementara saat memang perlu.
 
+## 6. Setup Cron Cleanup Cache Telegram
+
+Supaya disk VM tidak habis oleh cache Local Bot API Server (lihat bagian "PENTING" di atas):
+
+```bash
+chmod +x deploy/cleanup-telegram-cache.sh
+crontab -e
+```
+
+Tambahkan baris ini (jalan tiap hari jam 3 pagi, hapus cache >3 hari):
+
+```
+0 3 * * * TG_DATA_DIR=/home/ubuntu/telegram-bot-api-data DAYS_OLD=3 /home/ubuntu/telegram-drive/deploy/cleanup-telegram-cache.sh >> /var/log/td-cleanup.log 2>&1
+```
+
 ## Struktur Project
 
 ```
 telegram-drive/
 ├── src/
-│   ├── server.js          # entry point Express
-│   ├── db.js               # SQLite schema (users, folders, files)
-│   ├── telegram.js         # wrapper Local Bot API (upload/download/delete)
+│   ├── server.js            # entry point Express (helmet, CORS, JWT secret check)
+│   ├── config.js             # validasi JWT_SECRET saat startup
+│   ├── db.js                  # SQLite schema (users, folders, files, topics, upload_sessions)
+│   ├── telegram.js            # wrapper Local Bot API (upload/download/delete/topic kategori)
+│   ├── uploadPipeline.js      # logic bersama: chunking ke Telegram + simpan metadata
 │   ├── middleware/
-│   │   └── authMiddleware.js
+│   │   ├── authMiddleware.js
+│   │   └── rateLimiters.js    # rate limit login/register & upload
 │   └── routes/
-│       ├── authRoutes.js   # register/login
-│       └── fileRoutes.js   # folder CRUD, upload (chunked), download, delete
-├── public/                 # web UI (login.html, index.html, app.js, style.css)
+│       ├── authRoutes.js      # register/login
+│       └── fileRoutes.js      # folder CRUD+rename/move, resumable upload, download, preview
+├── public/                    # web UI (login, drive, modal preview & move picker)
+├── deploy/
+│   └── cleanup-telegram-cache.sh
 ├── .env.example
 └── package.json
 ```
 
 ## API Ringkas
 
-| Method | Path                        | Auth | Keterangan                        |
-|--------|------------------------------|------|------------------------------------|
-| POST   | /api/auth/register            | -    | `{username, password}`             |
-| POST   | /api/auth/login                | -    | `{username, password}` → JWT       |
-| GET    | /api/drive/list?folder_id=    | ✓    | Isi folder                         |
-| POST   | /api/drive/folders             | ✓    | `{name, parent_id}`                |
-| DELETE | /api/drive/folders/:id         | ✓    | Hapus folder + isinya              |
-| POST   | /api/drive/upload              | ✓    | multipart `file`, optional `folder_id` |
-| GET    | /api/drive/download/:id        | ✓    | Stream file (reassemble chunk)     |
-| DELETE | /api/drive/files/:id           | ✓    | Hapus file (+ coba hapus di grup)  |
+| Method | Path                                | Auth | Keterangan                                  |
+|--------|--------------------------------------|------|-----------------------------------------------|
+| POST   | /api/auth/register                    | -    | `{username, password}`                        |
+| POST   | /api/auth/login                        | -    | `{username, password}` → JWT                  |
+| GET    | /api/drive/list?folder_id=             | v    | Isi folder                                    |
+| POST   | /api/drive/folders                      | v    | `{name, parent_id}`                           |
+| PATCH  | /api/drive/folders/:id                  | v    | `{name?, parent_id?}` -- rename/pindah        |
+| DELETE | /api/drive/folders/:id                  | v    | Hapus folder + isinya                         |
+| PATCH  | /api/drive/files/:id                    | v    | `{name?, folder_id?}` -- rename/pindah        |
+| POST   | /api/drive/upload/init                  | v    | `{filename, size, mime_type, folder_id}`      |
+| PUT    | /api/drive/upload/:id/block/:index      | v    | Body biner satu block                         |
+| GET    | /api/drive/upload/:id/status            | v    | Cek block yang sudah diterima (buat resume)   |
+| POST   | /api/drive/upload/:id/complete          | v    | Gabung block + kirim ke Telegram              |
+| DELETE | /api/drive/upload/:id                   | v    | Batalkan sesi upload yang belum selesai       |
+| GET    | /api/drive/download/:id                 | v    | Download (attachment)                         |
+| GET    | /api/drive/preview/:id                  | v    | Preview inline (khusus image/* & PDF)         |
+| DELETE | /api/drive/files/:id                    | v    | Hapus file (+ coba hapus di grup)             |
 
-## Yang Belum Diimplementasi (kalau butuh, bilang saja)
+## Yang Belum Diimplementasi
 
-- Rename/move file & folder
-- Preview file (gambar/PDF) langsung di browser tanpa download
-- Resumable upload (kalau koneksi putus di tengah upload besar, harus ulang dari awal)
-- Rate limiting / brute-force protection di endpoint login
+- Kuota penyimpanan per user
+- Token revocation (logout paksa / blacklist token)
+- Multi-select (hapus/pindah banyak file sekaligus)

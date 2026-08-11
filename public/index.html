@@ -41,6 +41,32 @@
     <p id="emptyMsg" class="empty" hidden>Folder ini kosong.</p>
   </main>
 
+  <!-- Modal Preview (gambar & PDF) -->
+  <div id="previewModal" class="modal-overlay" hidden>
+    <div class="modal-box modal-preview">
+      <div class="modal-header">
+        <span id="previewTitle"></span>
+        <button id="previewClose" class="modal-close">✕</button>
+      </div>
+      <div id="previewBody" class="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Modal Pindah file/folder -->
+  <div id="moveModal" class="modal-overlay" hidden>
+    <div class="modal-box modal-move">
+      <div class="modal-header">
+        <span id="moveTitle"></span>
+        <button id="moveClose" class="modal-close">✕</button>
+      </div>
+      <nav id="moveBreadcrumb" class="breadcrumb"></nav>
+      <div id="moveBody" class="move-list"></div>
+      <div class="modal-footer">
+        <button id="moveHereBtn" class="primary-btn">Pindahkan ke sini</button>
+      </div>
+    </div>
+  </div>
+
 <script src="app.js"></script>
 </body>
 </html>

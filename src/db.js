@@ -40,6 +40,27 @@ CREATE TABLE IF NOT EXISTS files (
 
 CREATE INDEX IF NOT EXISTS idx_files_user_folder ON files(user_id, folder_id);
 CREATE INDEX IF NOT EXISTS idx_folders_user_parent ON folders(user_id, parent_id);
+
+-- Topic Telegram (forum topic) per kategori file, supaya tiap kategori
+-- langsung terlihat sebagai thread terpisah di dalam grup.
+CREATE TABLE IF NOT EXISTS telegram_topics (
+  category TEXT PRIMARY KEY,
+  thread_id INTEGER NOT NULL,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Sesi upload resumable: file dipecah jadi block di sisi client,
+-- diupload satu-satu, baru digabung + dikirim ke Telegram saat /complete.
+CREATE TABLE IF NOT EXISTS upload_sessions (
+  id TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  folder_id INTEGER REFERENCES folders(id) ON DELETE CASCADE,
+  original_name TEXT NOT NULL,
+  total_size INTEGER NOT NULL,
+  block_size INTEGER NOT NULL,
+  mime_type TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
 `);
 
 module.exports = db;

@@ -19,4 +19,15 @@ const uploadLimiter = rateLimit({
   message: { error: 'Terlalu banyak upload dalam waktu singkat. Coba lagi nanti.' },
 });
 
-module.exports = { authLimiter, uploadLimiter };
+// Block resumable upload jauh lebih sering dipanggil (1 request per 8MB),
+// jadi limitnya lebih longgar — ini cuma jaring pengaman terakhir dari abuse,
+// bukan pembatas utama (pembatas utama ada di uploadLimiter utk /init & /complete).
+const blockLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 2000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Terlalu banyak request upload block. Coba lagi nanti.' },
+});
+
+module.exports = { authLimiter, uploadLimiter, blockLimiter };

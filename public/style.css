@@ -31,6 +31,23 @@ body {
 .topbar-right { display: flex; align-items: center; gap: 12px; font-size: 13px; color: #999; }
 #logoutBtn { background: none; border: 1px solid #333; color: #ccc; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
 
+.quota-box { display: flex; flex-direction: column; gap: 3px; min-width: 140px; }
+.quota-bar { height: 5px; width: 140px; background: #262a33; border-radius: 3px; overflow: hidden; margin-bottom: 0; }
+.quota-text { font-size: 11px; color: #777; }
+.bar-fill.quota-warn { background: #e0553f; }
+
+.bulk-toolbar {
+  display: flex; justify-content: space-between; align-items: center;
+  background: #1e2836; border: 1px solid #2b6cee44; border-radius: 8px;
+  padding: 10px 14px; margin-bottom: 14px; font-size: 13px;
+}
+.bulk-actions { display: flex; gap: 8px; }
+.bulk-actions button {
+  padding: 6px 12px; border-radius: 6px; border: none; background: #262a33; color: #eee; cursor: pointer; font-size: 13px;
+}
+.danger-btn { background: #5a2323 !important; color: #ff8a8a !important; }
+.row-check { margin-right: 6px; cursor: pointer; vertical-align: middle; }
+
 .drive-wrap { max-width: 900px; margin: 24px auto; padding: 0 16px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .breadcrumb { font-size: 13px; color: #999; }

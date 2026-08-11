@@ -7,6 +7,7 @@ const { getLocalFilePath, deleteMessage } = require('../telegram');
 const { sendFileToTelegram, CHUNK_SIZE } = require('../uploadPipeline');
 const { requireAuth } = require('../middleware/authMiddleware');
 const { uploadLimiter, blockLimiter } = require('../middleware/rateLimiters');
+const { getQuotaBytes, getUsedBytes, assertWithinQuota } = require('../quota');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -123,6 +124,14 @@ router.delete('/folders/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+// ---------- Kuota penyimpanan ----------
+
+router.get('/quota', (req, res) => {
+  const used = getUsedBytes(req.user.id);
+  const quota = getQuotaBytes(req.user.id);
+  res.json({ used, quota });
+});
+
 // ---------- List isi folder ----------
 
 router.get('/list', (req, res) => {
@@ -138,7 +147,11 @@ router.get('/list', (req, res) => {
     )
     .all(req.user.id, folderId, folderId);
 
-  res.json({ folders, files });
+  res.json({
+    folders,
+    files,
+    quota: { used: getUsedBytes(req.user.id), total: getQuotaBytes(req.user.id) },
+  });
 });
 
 // ---------- Rename / pindah file ----------
@@ -182,6 +195,7 @@ router.post('/upload/init', uploadLimiter, (req, res) => {
   const folderId = folder_id ? parseInt(folder_id, 10) : null;
   try {
     assertFolderOwnership(folderId, req.user.id);
+    assertWithinQuota(req.user.id, size);
   } catch (err) {
     return res.status(err.status || 500).json({ error: err.message });
   }
@@ -273,6 +287,10 @@ router.post('/upload/:id/complete', uploadLimiter, async (req, res) => {
   const assembledPath = path.join(sessionDir, 'assembled');
   const out = fs.createWriteStream(assembledPath);
   try {
+    // Cek ulang kuota di sini (bukan cuma di /init) buat jaga-jaga kalau ada
+    // upload lain yang selesai duluan di antara /init dan /complete punya sesi ini.
+    assertWithinQuota(req.user.id, session.total_size);
+
     for (let i = 0; i < totalBlocks; i++) {
       const chunkBuf = fs.readFileSync(path.join(sessionDir, `block-${i}`));
       await new Promise((resolve, reject) => out.write(chunkBuf, (err) => (err ? reject(err) : resolve())));
@@ -291,7 +309,7 @@ router.post('/upload/:id/complete', uploadLimiter, async (req, res) => {
     res.json({ ok: true, ...result });
   } catch (err) {
     console.error('[upload/complete] error:', err);
-    res.status(500).json({ error: 'Upload ke Telegram gagal: ' + err.message });
+    res.status(err.status || 500).json({ error: err.status ? err.message : 'Upload ke Telegram gagal: ' + err.message });
   } finally {
     fs.rmSync(sessionDir, { recursive: true, force: true });
     db.prepare('DELETE FROM upload_sessions WHERE id = ?').run(session.id);
@@ -360,6 +378,89 @@ router.delete('/files/:id', async (req, res) => {
 
   db.prepare('DELETE FROM files WHERE id = ?').run(file.id);
   res.json({ ok: true });
+});
+
+// ---------- Bulk operations (multi-select di UI) ----------
+// Body selalu: { file_ids: [...], folder_ids: [...] } — keduanya opsional,
+// item yang bukan milik user (atau tidak ada) dilewati diam-diam & dilaporkan
+// di `skipped`, supaya satu item nyasar tidak menggagalkan seluruh batch.
+
+function normalizeIds(arr) {
+  if (!Array.isArray(arr)) return [];
+  return [...new Set(arr.map((x) => parseInt(x, 10)).filter((n) => Number.isInteger(n)))];
+}
+
+router.post('/bulk-delete', async (req, res) => {
+  const fileIds = normalizeIds(req.body.file_ids);
+  const folderIds = normalizeIds(req.body.folder_ids);
+
+  let deletedFiles = 0;
+  let deletedFolders = 0;
+  const skipped = [];
+
+  for (const id of fileIds) {
+    const file = db.prepare('SELECT id, chunks FROM files WHERE id = ? AND user_id = ?').get(id, req.user.id);
+    if (!file) { skipped.push({ type: 'file', id }); continue; }
+
+    const chunks = JSON.parse(file.chunks);
+    await Promise.all(chunks.map((c) => (c.message_id ? deleteMessage(c.message_id) : null)));
+    db.prepare('DELETE FROM files WHERE id = ?').run(file.id);
+    deletedFiles++;
+  }
+
+  for (const id of folderIds) {
+    const folder = db.prepare('SELECT id FROM folders WHERE id = ? AND user_id = ?').get(id, req.user.id);
+    if (!folder) { skipped.push({ type: 'folder', id }); continue; }
+
+    db.prepare('DELETE FROM folders WHERE id = ?').run(folder.id); // cascade
+    deletedFolders++;
+  }
+
+  res.json({ ok: true, deletedFiles, deletedFolders, skipped });
+});
+
+router.post('/bulk-move', (req, res) => {
+  const fileIds = normalizeIds(req.body.file_ids);
+  const folderIds = normalizeIds(req.body.folder_ids);
+  const targetFolderId = req.body.target_folder_id ? parseInt(req.body.target_folder_id, 10) : null;
+
+  try {
+    assertFolderOwnership(targetFolderId, req.user.id);
+  } catch (err) {
+    return res.status(err.status || 500).json({ error: err.message });
+  }
+
+  let movedFiles = 0;
+  let movedFolders = 0;
+  const skipped = [];
+
+  for (const id of fileIds) {
+    const file = db.prepare('SELECT id FROM files WHERE id = ? AND user_id = ?').get(id, req.user.id);
+    if (!file) { skipped.push({ type: 'file', id, reason: 'not_found' }); continue; }
+    db.prepare('UPDATE files SET folder_id = ? WHERE id = ?').run(targetFolderId, file.id);
+    movedFiles++;
+  }
+
+  for (const id of folderIds) {
+    const folder = db.prepare('SELECT id FROM folders WHERE id = ? AND user_id = ?').get(id, req.user.id);
+    if (!folder) { skipped.push({ type: 'folder', id, reason: 'not_found' }); continue; }
+    if (id === targetFolderId) { skipped.push({ type: 'folder', id, reason: 'self' }); continue; }
+
+    const descendants = getDescendantIds(id, req.user.id);
+    if (targetFolderId !== null && descendants.includes(targetFolderId)) {
+      skipped.push({ type: 'folder', id, reason: 'cycle' });
+      continue;
+    }
+
+    try {
+      db.prepare('UPDATE folders SET parent_id = ? WHERE id = ?').run(targetFolderId, id);
+      movedFolders++;
+    } catch (err) {
+      skipped.push({ type: 'folder', id, reason: 'name_conflict' });
+    }
+  }
+
+  res.json({ ok: true, movedFiles, movedFolders, skipped });
 });
 
 module.exports = router;

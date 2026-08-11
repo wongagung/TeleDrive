@@ -10,6 +10,10 @@
   <header class="topbar">
     <h1>📁 Telegram Drive</h1>
     <div class="topbar-right">
+      <div class="quota-box">
+        <div class="bar quota-bar"><div id="quotaBarFill" class="bar-fill"></div></div>
+        <span id="quotaText" class="quota-text"></span>
+      </div>
       <span id="whoami"></span>
       <button id="logoutBtn">Keluar</button>
     </div>
@@ -24,6 +28,15 @@
           ⬆ Upload
           <input type="file" id="fileInput" hidden />
         </label>
+      </div>
+    </div>
+
+    <div id="bulkToolbar" class="bulk-toolbar" hidden>
+      <span id="bulkCount"></span>
+      <div class="bulk-actions">
+        <button id="bulkMoveBtn">📂 Pindahkan</button>
+        <button id="bulkDeleteBtn" class="danger-btn">🗑 Hapus</button>
+        <button id="bulkCancelBtn">Batal</button>
       </div>
     </div>
 

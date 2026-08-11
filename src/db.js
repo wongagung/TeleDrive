@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   username TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
+  quota_bytes INTEGER NOT NULL DEFAULT 0, -- 0 = pakai DEFAULT_QUOTA_MB dari .env
   created_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -61,6 +62,22 @@ CREATE TABLE IF NOT EXISTS upload_sessions (
   mime_type TEXT,
   created_at TEXT DEFAULT (datetime('now'))
 );
+
+-- Token yang dicabut sebelum masa berlaku aslinya habis (logout paksa / kompromi).
+-- Disimpan pakai jti (JWT ID unik per token), bukan token mentah.
+CREATE TABLE IF NOT EXISTS revoked_tokens (
+  jti TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL,
+  revoked_at TEXT DEFAULT (datetime('now')),
+  expires_at TEXT NOT NULL -- buat pembersihan baris basi, sama dgn exp asli token
+);
+CREATE INDEX IF NOT EXISTS idx_revoked_expires ON revoked_tokens(expires_at);
 `);
+
+// Migrasi ringan untuk DB lama yang dibuat sebelum kolom quota_bytes ada.
+const userCols = db.prepare("PRAGMA table_info(users)").all().map((c) => c.name);
+if (!userCols.includes('quota_bytes')) {
+  db.exec('ALTER TABLE users ADD COLUMN quota_bytes INTEGER NOT NULL DEFAULT 0');
+}
 
 module.exports = db;

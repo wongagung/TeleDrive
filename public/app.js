@@ -2,13 +2,16 @@ const token = localStorage.getItem('td_token');
 if (!token) window.location.href = '/login.html';
 
 document.getElementById('whoami').textContent = localStorage.getItem('td_username') || '';
-document.getElementById('logoutBtn').onclick = () => {
+document.getElementById('logoutBtn').onclick = async () => {
+  try { await api('/api/auth/logout', { method: 'POST' }); } catch (_) { /* tetap logout lokal walau gagal cabut token */ }
   localStorage.clear();
   window.location.href = '/login.html';
 };
 
 let currentFolder = null; // null = root
 let folderStack = []; // [{id, name}]
+let selectedFiles = new Set();
+let selectedFolders = new Set();
 
 async function api(path, opts = {}) {
   const res = await fetch(path, {
@@ -64,15 +67,26 @@ async function loadList() {
   const res = await api(`/api/drive/list${q}`);
   const data = await res.json();
 
+  renderQuota(data.quota);
+
   const body = document.getElementById('listBody');
   body.innerHTML = '';
   const empty = document.getElementById('emptyMsg');
   empty.hidden = data.folders.length + data.files.length > 0;
 
+  // Buang seleksi buat item yang sudah tidak ada di folder ini (mis. setelah pindah folder)
+  const visibleFolderIds = new Set(data.folders.map((f) => f.id));
+  const visibleFileIds = new Set(data.files.map((f) => f.id));
+  selectedFolders.forEach((id) => { if (!visibleFolderIds.has(id)) selectedFolders.delete(id); });
+  selectedFiles.forEach((id) => { if (!visibleFileIds.has(id)) selectedFiles.delete(id); });
+
   data.folders.forEach((f) => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="name-cell">📁 ${escapeHtml(f.name)}</td>
+      <td class="name-cell">
+        <input type="checkbox" class="row-check" data-folder-check="${f.id}" ${selectedFolders.has(f.id) ? 'checked' : ''} />
+        📁 ${escapeHtml(f.name)}
+      </td>
       <td>—</td>
       <td>${new Date(f.created_at).toLocaleDateString('id-ID')}</td>
       <td class="row-actions">
@@ -81,7 +95,13 @@ async function loadList() {
         <button data-del-folder title="Hapus">🗑</button>
       </td>
     `;
-    tr.querySelector('.name-cell').onclick = () => {
+    tr.querySelector('[data-folder-check]').onclick = (e) => {
+      e.stopPropagation();
+      toggleSelect('folder', f.id, e.target.checked);
+    };
+    const nameSpan = tr.querySelector('.name-cell');
+    nameSpan.onclick = (e) => {
+      if (e.target.closest('input')) return;
       folderStack.push({ id: f.id, name: f.name });
       currentFolder = f.id;
       loadList();
@@ -113,7 +133,10 @@ async function loadList() {
     const tr = document.createElement('tr');
     const icon = isPreviewable(f.mime_type) ? '🖼️' : '📄';
     tr.innerHTML = `
-      <td class="name-cell">${icon} ${escapeHtml(f.original_name)}</td>
+      <td class="name-cell">
+        <input type="checkbox" class="row-check" data-file-check="${f.id}" ${selectedFiles.has(f.id) ? 'checked' : ''} />
+        ${icon} ${escapeHtml(f.original_name)}
+      </td>
       <td>${fmtSize(f.size)}</td>
       <td>${new Date(f.created_at).toLocaleDateString('id-ID')}</td>
       <td class="row-actions">
@@ -124,8 +147,15 @@ async function loadList() {
         <button data-del-file title="Hapus">🗑</button>
       </td>
     `;
+    tr.querySelector('[data-file-check]').onclick = (e) => {
+      e.stopPropagation();
+      toggleSelect('file', f.id, e.target.checked);
+    };
     if (isPreviewable(f.mime_type)) {
-      tr.querySelector('.name-cell').onclick = () => openPreview(f.id, f.original_name, f.mime_type);
+      tr.querySelector('.name-cell').onclick = (e) => {
+        if (e.target.closest('input')) return;
+        openPreview(f.id, f.original_name, f.mime_type);
+      };
       const pv = tr.querySelector('[data-preview]');
       if (pv) pv.onclick = () => openPreview(f.id, f.original_name, f.mime_type);
     }
@@ -147,7 +177,62 @@ async function loadList() {
     };
     body.appendChild(tr);
   });
+
+  renderBulkToolbar();
 }
+
+function renderQuota(quota) {
+  if (!quota) return;
+  const pct = quota.total > 0 ? Math.min(100, (quota.used / quota.total) * 100) : 0;
+  document.getElementById('quotaBarFill').style.width = pct.toFixed(1) + '%';
+  document.getElementById('quotaBarFill').classList.toggle('quota-warn', pct >= 90);
+  document.getElementById('quotaText').textContent = `${fmtSize(quota.used)} / ${fmtSize(quota.total)} terpakai`;
+}
+
+// ---------- Multi-select & bulk actions ----------
+
+function toggleSelect(type, id, checked) {
+  const set = type === 'folder' ? selectedFolders : selectedFiles;
+  if (checked) set.add(id); else set.delete(id);
+  renderBulkToolbar();
+}
+
+function clearSelection() {
+  selectedFiles.clear();
+  selectedFolders.clear();
+  document.querySelectorAll('.row-check').forEach((cb) => { cb.checked = false; });
+  renderBulkToolbar();
+}
+
+function renderBulkToolbar() {
+  const bar = document.getElementById('bulkToolbar');
+  const count = selectedFiles.size + selectedFolders.size;
+  if (count === 0) { bar.hidden = true; return; }
+  bar.hidden = false;
+  document.getElementById('bulkCount').textContent = `${count} item dipilih`;
+}
+
+document.getElementById('bulkCancelBtn').onclick = clearSelection;
+
+document.getElementById('bulkDeleteBtn').onclick = async () => {
+  const count = selectedFiles.size + selectedFolders.size;
+  if (!confirm(`Hapus ${count} item terpilih? Ini tidak bisa dibatalkan.`)) return;
+
+  const res = await api('/api/drive/bulk-delete', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ file_ids: [...selectedFiles], folder_ids: [...selectedFolders] }),
+  });
+  const result = await res.json();
+  clearSelection();
+  loadList();
+  if (result.skipped && result.skipped.length) {
+    alert(`Selesai. ${result.skipped.length} item dilewati (bukan milik kamu atau tidak ditemukan).`);
+  }
+};
+
+document.getElementById('bulkMoveBtn').onclick = () => {
+  openMovePicker('bulk', null, `${selectedFiles.size + selectedFolders.size} item`);
+};
 
 async function downloadWithAuth(id, filename) {
   const res = await api(`/api/drive/download/${id}`);
@@ -256,8 +341,12 @@ async function loadMovePicker() {
   const data = await res.json();
 
   moveBody.innerHTML = '';
-  // Kalau yang dipindah adalah folder, jangan tampilkan dirinya sendiri sebagai tujuan
-  const folders = data.folders.filter((f) => !(moveTarget.type === 'folder' && f.id === moveTarget.id));
+  // Jangan tampilkan folder yang sedang dipindah (atau sedang dipilih di bulk) sebagai tujuan
+  const folders = data.folders.filter((f) => {
+    if (moveTarget.type === 'folder' && f.id === moveTarget.id) return false;
+    if (moveTarget.type === 'bulk' && selectedFolders.has(f.id)) return false;
+    return true;
+  });
 
   if (folders.length === 0) {
     moveBody.innerHTML = '<p class="empty-small">Tidak ada subfolder di sini.</p>';
@@ -273,18 +362,35 @@ async function loadMovePicker() {
 }
 
 async function confirmMove() {
-  const endpoint = moveTarget.type === 'folder'
-    ? `/api/drive/folders/${moveTarget.id}`
-    : `/api/drive/files/${moveTarget.id}`;
-  const bodyKey = moveTarget.type === 'folder' ? 'parent_id' : 'folder_id';
+  let res;
+  if (moveTarget.type === 'bulk') {
+    res = await api('/api/drive/bulk-move', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        file_ids: [...selectedFiles],
+        folder_ids: [...selectedFolders],
+        target_folder_id: movePickerFolder,
+      }),
+    });
+  } else {
+    const endpoint = moveTarget.type === 'folder'
+      ? `/api/drive/folders/${moveTarget.id}`
+      : `/api/drive/files/${moveTarget.id}`;
+    const bodyKey = moveTarget.type === 'folder' ? 'parent_id' : 'folder_id';
+    res = await api(endpoint, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [bodyKey]: movePickerFolder }),
+    });
+  }
 
-  const res = await api(endpoint, {
-    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ [bodyKey]: movePickerFolder }),
-  });
   if (res.ok) {
+    const result = await res.json();
     closeMovePicker();
+    if (moveTarget && moveTarget.type === 'bulk') clearSelection();
     loadList();
+    if (result.skipped && result.skipped.length) {
+      alert(`Selesai. ${result.skipped.length} item dilewati (nama bentrok / tidak valid).`);
+    }
   } else {
     alert((await res.json()).error);
   }

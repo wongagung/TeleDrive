@@ -3,39 +3,61 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Telegram Drive</title>
+<meta name="theme-color" content="#0b1020" />
+<title>TeleDrive — Personal Cloud</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header class="topbar">
-    <h1>📁 Telegram Drive</h1>
+<div class="app-shell">
+  <div class="ambient ambient-a"></div>
+  <div class="ambient ambient-b"></div>
+
+  <header class="topbar glass">
+    <div class="brand">
+      <div class="brand-mark"><span>✦</span></div>
+      <div>
+        <h1>TeleDrive</h1>
+        <p>Private cloud powered by Telegram</p>
+      </div>
+    </div>
+
     <div class="topbar-right">
       <div class="quota-box">
+        <div class="quota-head"><span>Storage</span><span id="quotaText" class="quota-text"></span></div>
         <div class="bar quota-bar"><div id="quotaBarFill" class="bar-fill"></div></div>
-        <span id="quotaText" class="quota-text"></span>
       </div>
-      <span id="whoami"></span>
+      <span id="whoami" class="user-pill"></span>
       <a id="adminLink" href="admin.html" class="admin-link" hidden>⚙ Admin</a>
-      <button id="logoutBtn">Keluar</button>
+      <button id="logoutBtn" class="ghost-btn">Keluar</button>
     </div>
   </header>
 
   <main class="drive-wrap">
-    <div class="toolbar">
+    <section class="hero-row">
+      <div>
+        <div class="eyebrow">YOUR DIGITAL SPACE</div>
+        <h2>Semua file, satu tempat.</h2>
+        <p>Kelola dokumen, foto, video, dan arsip dengan pengalaman cloud yang ringan.</p>
+      </div>
+      <div class="hero-actions">
+        <button id="newFolderBtn" class="secondary-btn">＋ Folder</button>
+        <label class="upload-btn primary-btn">↑ Upload<input type="file" id="fileInput" hidden /></label>
+      </div>
+    </section>
+
+    <div class="toolbar glass">
       <nav id="breadcrumb" class="breadcrumb"></nav>
       <div class="search-box">
-        <input type="text" id="searchInput" placeholder="🔍 Cari nama file..." />
-      </div>
-      <div class="actions">
-        <button id="newFolderBtn">+ Folder</button>
-        <label class="upload-btn">
-          ⬆ Upload
-          <input type="file" id="fileInput" hidden />
-        </label>
+        <span class="search-icon">⌕</span>
+        <input type="text" id="searchInput" placeholder="Cari file atau folder..." autocomplete="off" />
+        <kbd>/</kbd>
       </div>
     </div>
 
-    <div id="bulkToolbar" class="bulk-toolbar" hidden>
+    <div id="bulkToolbar" class="bulk-toolbar glass" hidden>
       <span id="bulkCount"></span>
       <div class="bulk-actions">
         <button id="bulkMoveBtn">📂 Pindahkan</button>
@@ -44,55 +66,57 @@
       </div>
     </div>
 
-    <div id="uploadProgress" class="upload-progress" hidden>
+    <div id="uploadProgress" class="upload-progress glass" hidden>
+      <div class="upload-status-row"><span id="uploadStatus">Menyiapkan upload…</span><strong id="uploadPercent">0%</strong></div>
       <div class="bar"><div id="uploadBar" class="bar-fill"></div></div>
-      <span id="uploadStatus"></span>
     </div>
 
-    <div id="searchResults" class="search-results" hidden>
+    <div id="searchResults" class="search-results glass" hidden>
       <p id="searchInfo" class="search-info"></p>
-      <table class="drive-table">
-        <thead><tr><th>Nama</th><th>Lokasi</th><th>Ukuran</th><th></th></tr></thead>
-        <tbody id="searchBody"></tbody>
-      </table>
+      <table class="drive-table"><thead><tr><th>Nama</th><th>Lokasi</th><th>Ukuran</th><th></th></tr></thead><tbody id="searchBody"></tbody></table>
     </div>
 
-    <table id="mainTable" class="drive-table">
-      <thead>
-        <tr><th>Nama</th><th>Ukuran</th><th>Tanggal</th><th></th></tr>
-      </thead>
-      <tbody id="listBody"></tbody>
-    </table>
-    <p id="emptyMsg" class="empty" hidden>Folder ini kosong.</p>
+    <section class="files-panel glass">
+      <div class="panel-head">
+        <div>
+          <span class="panel-kicker">FILES</span>
+          <h3>My Drive</h3>
+        </div>
+        <div class="view-hint">Klik video untuk preview langsung</div>
+      </div>
+
+      <div class="table-wrap">
+        <table id="mainTable" class="drive-table">
+          <thead><tr><th>Nama</th><th>Ukuran</th><th>Tanggal</th><th></th></tr></thead>
+          <tbody id="listBody"></tbody>
+        </table>
+      </div>
+      <p id="emptyMsg" class="empty" hidden><span>◌</span><strong>Folder ini kosong</strong><small>Upload file atau buat folder baru untuk memulai.</small></p>
+    </section>
   </main>
+</div>
 
-  <!-- Modal Preview (gambar & PDF) -->
-  <div id="previewModal" class="modal-overlay" hidden>
-    <div class="modal-box modal-preview">
-      <div class="modal-header">
-        <span id="previewTitle"></span>
-        <button id="previewClose" class="modal-close">✕</button>
-      </div>
-      <div id="previewBody" class="modal-body"></div>
+<div id="previewModal" class="modal-overlay" hidden>
+  <div class="modal-box modal-preview">
+    <div class="modal-header">
+      <div><span class="modal-kicker">PREVIEW</span><span id="previewTitle"></span></div>
+      <button id="previewClose" class="modal-close">✕</button>
     </div>
+    <div id="previewBody" class="modal-body"></div>
   </div>
+</div>
 
-  <!-- Modal Pindah file/folder -->
-  <div id="moveModal" class="modal-overlay" hidden>
-    <div class="modal-box modal-move">
-      <div class="modal-header">
-        <span id="moveTitle"></span>
-        <button id="moveClose" class="modal-close">✕</button>
-      </div>
-      <nav id="moveBreadcrumb" class="breadcrumb"></nav>
-      <div id="moveBody" class="move-list"></div>
-      <div class="modal-footer">
-        <button id="moveHereBtn" class="primary-btn">Pindahkan ke sini</button>
-      </div>
-    </div>
+<div id="moveModal" class="modal-overlay" hidden>
+  <div class="modal-box modal-move">
+    <div class="modal-header"><span id="moveTitle"></span><button id="moveClose" class="modal-close">✕</button></div>
+    <nav id="moveBreadcrumb" class="breadcrumb"></nav>
+    <div id="moveBody" class="move-list"></div>
+    <div class="modal-footer"><button id="moveHereBtn" class="primary-btn">Pindahkan ke sini</button></div>
   </div>
+</div>
 
 <script src="auth.js"></script>
 <script src="app.js"></script>
+<script src="ui-enhancements.js"></script>
 </body>
 </html>

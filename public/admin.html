@@ -5,35 +5,47 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Admin — Telegram Drive</title>
 <link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="admin.css" />
 </head>
-<body>
-  <header class="topbar">
-    <h1>⚙ Admin Panel</h1>
-    <div class="topbar-right">
-      <a href="index.html" class="admin-link">← Kembali ke Drive</a>
-      <span id="whoami"></span>
-      <button id="logoutBtn">Keluar</button>
+<body class="admin-page">
+<header class="topbar admin-topbar">
+  <div class="admin-brand">
+    <div class="admin-brand-icon">⚙</div>
+    <div><h1>Admin Panel</h1><span>Kelola pengguna & penyimpanan</span></div>
+  </div>
+  <div class="topbar-right">
+    <a href="index.html" class="admin-link">← Kembali ke Drive</a>
+    <span id="whoami" class="admin-whoami"></span>
+    <button id="logoutBtn">Keluar</button>
+  </div>
+</header>
+<main class="drive-wrap admin-wrap">
+  <section class="admin-hero">
+    <div><span class="eyebrow">SYSTEM OVERVIEW</span><h2>Ringkasan penyimpanan</h2><p>Pantau pengguna, file, dan pemakaian storage dari satu tempat.</p></div>
+    <button id="refreshBtn" class="admin-refresh">↻ Refresh</button>
+  </section>
+  <div id="statsRow" class="stats-row admin-stats"></div>
+  <section class="admin-users-section">
+    <div class="section-heading"><div><span class="eyebrow">USER MANAGEMENT</span><h2>Semua User</h2></div><span id="userCount" class="user-count"></span></div>
+    <div class="admin-table-card">
+      <div class="admin-table-scroll">
+        <table class="drive-table admin-table">
+          <thead><tr><th>Pengguna</th><th>Terdaftar</th><th>Storage</th><th>Status</th><th class="actions-head">Aksi</th></tr></thead>
+          <tbody id="userBody"></tbody>
+        </table>
+      </div>
     </div>
-  </header>
-
-  <main class="drive-wrap">
-    <div id="statsRow" class="stats-row"></div>
-
-    <h2 class="section-title">Semua User</h2>
-    <table class="drive-table">
-      <thead>
-        <tr>
-          <th>Username</th>
-          <th>Terdaftar</th>
-          <th>Storage</th>
-          <th>Admin</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="userBody"></tbody>
-    </table>
-  </main>
-
+  </section>
+</main>
+<div id="adminToast" class="admin-toast" hidden></div>
+<div id="quotaModal" class="admin-modal" hidden>
+  <div class="admin-modal-card">
+    <div class="admin-modal-head"><div><span class="eyebrow">STORAGE</span><h3>Ubah kuota</h3></div><button class="modal-close" data-close-modal>✕</button></div>
+    <p id="quotaUserLabel" class="modal-muted"></p>
+    <label class="admin-field"><span>Kuota dalam MB</span><input id="quotaInput" type="number" min="0" step="1" inputmode="numeric"><small>0 = gunakan default global</small></label>
+    <div class="admin-modal-actions"><button class="secondary-btn" data-close-modal>Batal</button><button id="quotaSaveBtn" class="primary-btn">Simpan</button></div>
+  </div>
+</div>
 <script src="auth.js"></script>
 <script src="admin.js"></script>
 </body>

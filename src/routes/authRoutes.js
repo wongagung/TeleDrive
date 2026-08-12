@@ -3,10 +3,24 @@ const bcrypt = require('bcryptjs');
 const db = require('../db');
 const { authLimiter } = require('../middleware/rateLimiters');
 const { requireAuth } = require('../middleware/authMiddleware');
-const { signToken, revokeToken } = require('../tokenUtils');
+const {
+  signAccessToken,
+  revokeAccessToken,
+  createRefreshToken,
+  rotateRefreshToken,
+  revokeRefreshToken,
+} = require('../tokenUtils');
 
 const router = express.Router();
 const USERNAME_RE = /^[a-zA-Z0-9._-]{3,32}$/;
+
+function issueTokenPair(user) {
+  return {
+    token: signAccessToken(user), // nama field "token" dipertahankan biar kompatibel sama frontend lama
+    refresh_token: createRefreshToken(user.id),
+    username: user.username,
+  };
+}
 
 router.post('/register', authLimiter, (req, res) => {
   if (process.env.DISABLE_REGISTRATION === 'true') {
@@ -32,8 +46,13 @@ router.post('/register', authLimiter, (req, res) => {
     .prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)')
     .run(username, hash);
 
-  const token = signToken({ id: info.lastInsertRowid, username });
-  res.json({ token, username });
+  // User pertama di sistem otomatis jadi admin (lihat juga db.js untuk migrasi DB lama)
+  const userCount = db.prepare('SELECT COUNT(*) AS c FROM users').get().c;
+  if (userCount === 1) {
+    db.prepare('UPDATE users SET is_admin = 1 WHERE id = ?').run(info.lastInsertRowid);
+  }
+
+  res.json(issueTokenPair({ id: info.lastInsertRowid, username }));
 });
 
 router.post('/login', authLimiter, (req, res) => {
@@ -44,16 +63,39 @@ router.post('/login', authLimiter, (req, res) => {
     return res.status(401).json({ error: 'Username atau password salah' });
   }
 
-  const token = signToken({ id: user.id, username: user.username });
-  res.json({ token, username: user.username });
+  res.json(issueTokenPair({ id: user.id, username: user.username }));
 });
 
-// Cabut token yang sedang dipakai — dari titik ini token itu langsung tidak
-// valid lagi walau masa berlakunya (JWT_EXPIRES_IN) belum habis. Berguna
-// kalau device hilang / token bocor / user pindah device.
+// Tukar refresh token yang masih valid dengan access token baru (+ refresh
+// token baru juga, rotasi -- yang lama langsung invalid begitu dipakai).
+router.post('/refresh', authLimiter, (req, res) => {
+  const { refresh_token } = req.body;
+  if (!refresh_token) return res.status(400).json({ error: 'refresh_token wajib diisi' });
+
+  const result = rotateRefreshToken(refresh_token);
+  if (!result) {
+    return res.status(401).json({ error: 'Refresh token tidak valid/kadaluarsa, silakan login ulang' });
+  }
+
+  res.json({
+    token: signAccessToken(result.user),
+    refresh_token: result.refreshToken,
+    username: result.user.username,
+  });
+});
+
+// Cabut access token DAN refresh token yang sedang dipakai -- dari titik ini
+// keduanya langsung tidak valid lagi, walau masa berlakunya belum habis.
 router.post('/logout', requireAuth, (req, res) => {
-  revokeToken(req.tokenPayload);
+  revokeAccessToken(req.tokenPayload);
+  if (req.body && req.body.refresh_token) {
+    revokeRefreshToken(req.body.refresh_token);
+  }
   res.json({ ok: true });
+});
+
+router.get('/me', requireAuth, (req, res) => {
+  res.json({ id: req.user.id, username: req.user.username, is_admin: req.user.isAdmin });
 });
 
 module.exports = router;

@@ -253,18 +253,61 @@ Kuota dicek dua kali: sekali di `/upload/init` (biar user tahu di awal, sebelum 
 bandwidth), sekali lagi di `/upload/complete` (jaga-jaga ada upload lain yang selesai duluan
 di antara init dan complete pada sesi yang sama).
 
-## 8. Logout / Cabut Token
+## 8. Access Token + Refresh Token
 
-`POST /api/auth/logout` mencabut token yang sedang dipakai — dari titik itu token langsung
-tidak valid lagi walau `JWT_EXPIRES_IN` belum habis. Berguna kalau device hilang atau kamu
-curiga token bocor. Bedanya dengan ganti `JWT_SECRET`: ganti secret invalidate SEMUA user
-sekaligus, sedangkan logout cuma mencabut satu token spesifik.
+Login/register sekarang balikin dua token:
 
-Baris di tabel `revoked_tokens` otomatis basi begitu token aslinya kadaluarsa — kalau mau
-dibersihkan manual dari database supaya tabelnya tidak menumpuk selamanya:
+- `token` (access token): JWT umur pendek (default 15 menit, `ACCESS_TOKEN_EXPIRES_IN`), dipakai
+  di header `Authorization: Bearer <token>` tiap request.
+- `refresh_token`: string acak umur panjang (default 30 hari, `REFRESH_TOKEN_DAYS`), disimpan
+  HANYA hash-nya di database. Dipakai buat minta access token baru tanpa login ulang pakai password.
 
-```sql
-DELETE FROM revoked_tokens WHERE expires_at < datetime('now');
+Frontend (`public/auth.js`) otomatis nuker access token baru pakai refresh token begitu dapat
+`401`, transparan buat user -- gak perlu login ulang tiap 15 menit. Refresh token **rotate**
+tiap dipakai (token lama langsung invalid begitu dipakai sekali), jadi kalau refresh token
+lama dipakai lagi (misal karena bocor & dipakai orang lain), itu ketahuan sebagai anomali.
+
+```
+POST /api/auth/refresh
+Body: {"refresh_token": "..."}
+Response: {"token": "...", "refresh_token": "...", "username": "..."}
+```
+
+`POST /api/auth/logout` mencabut **keduanya sekaligus** (access token via jti, refresh token via
+hash) -- kirim `refresh_token` juga di body kalau mau refresh token-nya ikut tercabut, bukan cuma
+access token-nya.
+
+## 9. Admin Panel
+
+User **pertama** yang daftar di sistem otomatis jadi admin. Admin bisa akses `/admin.html` (muncul
+link "⚙ Admin" di header drive kalau login sebagai admin), isinya:
+
+- Statistik total user, total file, total storage terpakai
+- List semua user + storage usage masing-masing
+- Ubah kuota per user (alternatif GUI buat `scripts/set-quota.js`)
+- Promote/demote admin (tidak bisa mencabut admin terakhir yang tersisa)
+- Hapus user beserta semua folder/file-nya (tidak bisa hapus diri sendiri lewat sini)
+
+**Catatan**: hapus user cuma hapus metadata di database. File yang sudah kadung ke Telegram
+TIDAK ikut kehapus dari grup -- itu di luar jangkauan operasi ini (Telegram tidak selalu kasih
+bot izin hapus pesan lama tergantung setting grup), hapus manual dari Telegram kalau perlu.
+
+Kalau semua admin ke-lockout (misal typo demote diri sendiri), jalur darurat lewat CLI di VM:
+
+```bash
+node scripts/make-admin.js <username>        # jadikan admin
+node scripts/make-admin.js <username> off    # cabut admin
+```
+
+## 10. Pencarian Nama File (Full-Text)
+
+Search box di toolbar drive nyari lintas SEMUA folder (bukan cuma folder yang lagi dibuka),
+pakai SQLite FTS5 (bukan `LIKE` biasa) -- support multi-kata dan prefix match ("keu" bisa nemu
+"Keuangan"). Index-nya sinkron otomatis lewat trigger database tiap ada file baru/diganti nama/dihapus,
+jadi tidak perlu proses reindex manual.
+
+```
+GET /api/drive/search?q=laporan+keuangan
 ```
 
 ## Struktur Project
@@ -272,22 +315,30 @@ DELETE FROM revoked_tokens WHERE expires_at < datetime('now');
 ```
 telegram-drive/
 ├── src/
-│   ├── server.js            # entry point Express (helmet, CORS, JWT secret check)
-│   ├── config.js             # validasi JWT_SECRET saat startup
-│   ├── db.js                  # SQLite schema (users, folders, files, topics, quota, revoked_tokens)
-│   ├── telegram.js            # wrapper Local Bot API (upload/download/delete/topic kategori)
-│   ├── tokenUtils.js          # sign JWT (dengan jti) + cek/tambah revocation
-│   ├── quota.js               # hitung & cek kuota penyimpanan per user
-│   ├── uploadPipeline.js      # logic bersama: chunking ke Telegram + simpan metadata
+│   ├── server.js              # entry point Express (helmet, CORS, JWT secret check)
+│   ├── config.js               # validasi JWT_SECRET saat startup
+│   ├── db.js                    # schema (users+is_admin, folders, files+FTS5, topics, quota, tokens)
+│   ├── telegram.js              # wrapper Local Bot API (upload/download/delete/topic kategori)
+│   ├── tokenUtils.js            # access token (JWT+jti) + refresh token (opaque, hash, rotate)
+│   ├── quota.js                 # hitung & cek kuota penyimpanan per user
+│   ├── uploadPipeline.js        # logic bersama: chunking ke Telegram + simpan metadata
 │   ├── middleware/
-│   │   ├── authMiddleware.js  # verifikasi JWT + cek revoked_tokens
-│   │   └── rateLimiters.js    # rate limit login/register & upload
+│   │   ├── authMiddleware.js    # verifikasi JWT + cek revoked_tokens + cek user masih ada
+│   │   ├── adminMiddleware.js   # guard requireAdmin
+│   │   └── rateLimiters.js      # rate limit login/register & upload
 │   └── routes/
-│       ├── authRoutes.js      # register/login/logout
-│       └── fileRoutes.js      # folder CRUD+rename/move, resumable upload, download, preview, bulk ops
-├── public/                    # web UI: login, drive (multi-select, quota bar, modal preview & move)
+│       ├── authRoutes.js        # register/login/refresh/logout/me
+│       ├── adminRoutes.js       # list user, set kuota, promote/demote, hapus user
+│       └── fileRoutes.js        # folder CRUD+rename/move, resumable upload, download, preview,
+│                                 # bulk ops, search
+├── public/
+│   ├── auth.js                  # shared: token storage, auto-refresh on 401, logout
+│   ├── login.html / login.js
+│   ├── index.html / app.js      # drive: multi-select, quota bar, search, modal preview & move
+│   └── admin.html / admin.js    # panel admin
 ├── scripts/
-│   └── set-quota.js           # CLI: set kuota custom per user
+│   ├── set-quota.js             # CLI: set kuota custom per user
+│   └── make-admin.js            # CLI: promote/demote admin (jalur darurat)
 ├── deploy/
 │   └── cleanup-telegram-cache.sh
 ├── .env.example
@@ -296,30 +347,38 @@ telegram-drive/
 
 ## API Ringkas
 
-| Method | Path                                | Auth | Keterangan                                    |
-|--------|--------------------------------------|------|-------------------------------------------------|
-| POST   | /api/auth/register                    | -    | `{username, password}`                          |
-| POST   | /api/auth/login                        | -    | `{username, password}` -> JWT                   |
-| POST   | /api/auth/logout                       | v    | Cabut token yang sedang dipakai                 |
-| GET    | /api/drive/list?folder_id=             | v    | Isi folder + info quota                         |
-| GET    | /api/drive/quota                       | v    | `{used, quota}` dalam bytes                     |
-| POST   | /api/drive/folders                      | v    | `{name, parent_id}`                             |
-| PATCH  | /api/drive/folders/:id                  | v    | `{name?, parent_id?}` -- rename/pindah          |
-| DELETE | /api/drive/folders/:id                  | v    | Hapus folder + isinya                           |
-| PATCH  | /api/drive/files/:id                    | v    | `{name?, folder_id?}` -- rename/pindah          |
-| POST   | /api/drive/upload/init                  | v    | `{filename, size, mime_type, folder_id}`, cek quota |
-| PUT    | /api/drive/upload/:id/block/:index      | v    | Body biner satu block                           |
-| GET    | /api/drive/upload/:id/status            | v    | Cek block yang sudah diterima (buat resume)     |
-| POST   | /api/drive/upload/:id/complete          | v    | Gabung block + kirim ke Telegram                |
-| DELETE | /api/drive/upload/:id                   | v    | Batalkan sesi upload yang belum selesai         |
-| GET    | /api/drive/download/:id                 | v    | Download (attachment)                           |
-| GET    | /api/drive/preview/:id                  | v    | Preview inline (khusus image/* & PDF)           |
-| DELETE | /api/drive/files/:id                    | v    | Hapus satu file (+ coba hapus di grup)          |
-| POST   | /api/drive/bulk-delete                  | v    | `{file_ids[], folder_ids[]}` -- hapus banyak sekaligus |
-| POST   | /api/drive/bulk-move                    | v    | `{file_ids[], folder_ids[], target_folder_id}` -- pindah banyak sekaligus |
+| Method | Path                                | Auth  | Keterangan                                    |
+|--------|--------------------------------------|-------|-------------------------------------------------|
+| POST   | /api/auth/register                    | -     | `{username, password}` -> access+refresh token   |
+| POST   | /api/auth/login                        | -     | `{username, password}` -> access+refresh token   |
+| POST   | /api/auth/refresh                      | -     | `{refresh_token}` -> access+refresh token baru   |
+| POST   | /api/auth/logout                       | v     | Cabut access token (+ refresh token kalau dikirim) |
+| GET    | /api/auth/me                           | v     | `{id, username, is_admin}`                       |
+| GET    | /api/drive/list?folder_id=             | v     | Isi folder + info quota                          |
+| GET    | /api/drive/search?q=                   | v     | Full-text search nama file lintas folder         |
+| GET    | /api/drive/quota                       | v     | `{used, quota}` dalam bytes                      |
+| POST   | /api/drive/folders                      | v     | `{name, parent_id}`                              |
+| PATCH  | /api/drive/folders/:id                  | v     | `{name?, parent_id?}` -- rename/pindah           |
+| DELETE | /api/drive/folders/:id                  | v     | Hapus folder + isinya                            |
+| PATCH  | /api/drive/files/:id                    | v     | `{name?, folder_id?}` -- rename/pindah           |
+| POST   | /api/drive/upload/init                  | v     | `{filename, size, mime_type, folder_id}`, cek quota |
+| PUT    | /api/drive/upload/:id/block/:index      | v     | Body biner satu block                            |
+| GET    | /api/drive/upload/:id/status            | v     | Cek block yang sudah diterima (buat resume)      |
+| POST   | /api/drive/upload/:id/complete          | v     | Gabung block + kirim ke Telegram                 |
+| DELETE | /api/drive/upload/:id                   | v     | Batalkan sesi upload yang belum selesai          |
+| GET    | /api/drive/download/:id                 | v     | Download (attachment)                            |
+| GET    | /api/drive/preview/:id                  | v     | Preview inline (khusus image/* & PDF)            |
+| DELETE | /api/drive/files/:id                    | v     | Hapus satu file (+ coba hapus di grup)           |
+| POST   | /api/drive/bulk-delete                  | v     | `{file_ids[], folder_ids[]}` -- hapus banyak sekaligus |
+| POST   | /api/drive/bulk-move                    | v     | `{file_ids[], folder_ids[], target_folder_id}` -- pindah banyak sekaligus |
+| GET    | /api/admin/users                        | admin | List semua user + storage usage                  |
+| GET    | /api/admin/stats                        | admin | Statistik total (user, file, storage)            |
+| PATCH  | /api/admin/users/:id/quota              | admin | `{quota_mb}` -- 0 = pakai default global         |
+| PATCH  | /api/admin/users/:id/admin              | admin | `{is_admin}` -- promote/demote                   |
+| DELETE | /api/admin/users/:id                    | admin | Hapus user + semua data-nya                      |
 
 ## Yang Belum Diimplementasi
 
-- Admin panel web (saat ini kuota di-set lewat CLI `scripts/set-quota.js`)
-- Refresh token (saat ini cuma access token JWT berumur `JWT_EXPIRES_IN`)
-- Full-text search nama file
+- Kuota per-folder atau per-tipe-file (saat ini kuota flat per user)
+- Audit log aktivitas admin (siapa hapus/ubah apa, kapan)
+- Notifikasi email/Telegram DM ke user kalau kuotanya hampir penuh

@@ -23,6 +23,7 @@ document.getElementById('authForm').onsubmit = async (e) => {
     if (!res.ok) throw new Error(data.error || 'Gagal');
 
     localStorage.setItem('td_token', data.token);
+    localStorage.setItem('td_refresh_token', data.refresh_token);
     localStorage.setItem('td_username', data.username);
     window.location.href = '/';
   } catch (err) {

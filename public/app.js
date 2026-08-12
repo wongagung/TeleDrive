@@ -1,30 +1,22 @@
-const token = localStorage.getItem('td_token');
-if (!token) window.location.href = '/login.html';
+requireLogin();
 
 document.getElementById('whoami').textContent = localStorage.getItem('td_username') || '';
-document.getElementById('logoutBtn').onclick = async () => {
-  try { await api('/api/auth/logout', { method: 'POST' }); } catch (_) { /* tetap logout lokal walau gagal cabut token */ }
-  localStorage.clear();
-  window.location.href = '/login.html';
-};
+document.getElementById('logoutBtn').onclick = logout;
 
 let currentFolder = null; // null = root
 let folderStack = []; // [{id, name}]
 let selectedFiles = new Set();
 let selectedFolders = new Set();
 
-async function api(path, opts = {}) {
-  const res = await fetch(path, {
-    ...opts,
-    headers: { ...(opts.headers || {}), Authorization: `Bearer ${token}` },
-  });
-  if (res.status === 401) {
-    localStorage.clear();
-    window.location.href = '/login.html';
-    return;
+// Tampilkan link "Admin" di topbar kalau user ini admin
+(async () => {
+  const res = await api('/api/auth/me');
+  if (!res) return;
+  const me = await res.json();
+  if (me.is_admin) {
+    document.getElementById('adminLink').hidden = false;
   }
-  return res;
-}
+})();
 
 function fmtSize(bytes) {
   if (bytes < 1024) return bytes + ' B';
@@ -504,6 +496,65 @@ async function resumableUpload(file) {
     progressStatus.textContent = `Gagal (bisa dicoba lagi, progres tersimpan): ${err.message}`;
     setTimeout(() => { progressBox.hidden = true; }, 5000);
   }
+}
+
+// ---------- Pencarian nama file ----------
+
+const searchInput = document.getElementById('searchInput');
+const searchResults = document.getElementById('searchResults');
+const searchBody = document.getElementById('searchBody');
+const searchInfo = document.getElementById('searchInfo');
+const mainTable = document.getElementById('mainTable');
+let searchDebounce = null;
+
+searchInput.addEventListener('input', () => {
+  clearTimeout(searchDebounce);
+  const q = searchInput.value.trim();
+
+  if (!q) {
+    exitSearchMode();
+    return;
+  }
+  searchDebounce = setTimeout(() => runSearch(q), 300);
+});
+
+function exitSearchMode() {
+  searchResults.hidden = true;
+  mainTable.hidden = false;
+  document.getElementById('breadcrumb').hidden = false;
+}
+
+async function runSearch(q) {
+  const res = await api(`/api/drive/search?q=${encodeURIComponent(q)}`);
+  if (!res) return;
+  const data = await res.json();
+
+  mainTable.hidden = true;
+  document.getElementById('breadcrumb').hidden = true;
+  document.getElementById('emptyMsg').hidden = true;
+  searchResults.hidden = false;
+
+  searchInfo.textContent = data.files.length === 0
+    ? `Tidak ada file yang cocok dengan "${q}"`
+    : `${data.files.length} hasil untuk "${q}"`;
+
+  searchBody.innerHTML = '';
+  data.files.forEach((f) => {
+    const tr = document.createElement('tr');
+    const icon = isPreviewable(f.mime_type) ? '🖼️' : '📄';
+    const location = f.folder_path.length ? f.folder_path.join(' / ') : '🏠 Root';
+    tr.innerHTML = `
+      <td class="name-cell">${icon} ${escapeHtml(f.original_name)}</td>
+      <td class="search-location">${escapeHtml(location)}</td>
+      <td>${fmtSize(f.size)}</td>
+      <td class="row-actions"><button data-dl title="Download">⬇</button></td>
+    `;
+    tr.querySelector('[data-dl]').onclick = () => downloadWithAuth(f.id, f.original_name);
+    if (isPreviewable(f.mime_type)) {
+      tr.querySelector('.name-cell').onclick = () => openPreview(f.id, f.original_name, f.mime_type);
+    }
+    searchBody.appendChild(tr);
+  });
 }
 
 loadList();

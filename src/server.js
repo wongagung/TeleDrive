@@ -7,8 +7,12 @@ const path = require('path');
 const { assertStrongJwtSecret } = require('./config');
 assertStrongJwtSecret(); // server menolak start kalau JWT_SECRET lemah/default
 
+const { cleanupExpiredTokens } = require('./tokenUtils');
+cleanupExpiredTokens(); // buang baris token basi di startup, sebelum nerima traffic
+
 const authRoutes = require('./routes/authRoutes');
 const fileRoutes = require('./routes/fileRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 app.disable('x-powered-by'); // jangan bocorkan "Express" ke response header
@@ -48,6 +52,10 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/drive', fileRoutes);
+app.use('/api/admin', adminRoutes);
+
+// Bersihkan token basi tiap 6 jam sekali biar tabelnya nggak numpuk.
+setInterval(cleanupExpiredTokens, 6 * 60 * 60 * 1000).unref();
 
 app.get('/health', (req, res) => res.json({ ok: true }));
 

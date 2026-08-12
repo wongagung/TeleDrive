@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
   username TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
   quota_bytes INTEGER NOT NULL DEFAULT 0, -- 0 = pakai DEFAULT_QUOTA_MB dari .env
+  is_admin INTEGER NOT NULL DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -72,12 +73,69 @@ CREATE TABLE IF NOT EXISTS revoked_tokens (
   expires_at TEXT NOT NULL -- buat pembersihan baris basi, sama dgn exp asli token
 );
 CREATE INDEX IF NOT EXISTS idx_revoked_expires ON revoked_tokens(expires_at);
+
+-- Refresh token: opaque random string, HANYA hash-nya yang disimpan (bukan
+-- token mentah). Access token (JWT) umurnya pendek; refresh token ini yang
+-- dipakai buat minta access token baru tanpa harus login ulang password.
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+  id TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now')),
+  expires_at TEXT NOT NULL,
+  revoked_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_refresh_user ON refresh_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_refresh_hash ON refresh_tokens(token_hash);
+
+-- Index full-text buat pencarian nama file. External-content FTS5: data
+-- aslinya tetap di tabel files, FTS5 cuma nyimpen index tokennya supaya
+-- hemat storage & otomatis sinkron lewat trigger di bawah.
+CREATE VIRTUAL TABLE IF NOT EXISTS files_fts USING fts5(
+  original_name,
+  content='files',
+  content_rowid='id',
+  tokenize='unicode61 remove_diacritics 2'
+);
+
+CREATE TRIGGER IF NOT EXISTS files_fts_ai AFTER INSERT ON files BEGIN
+  INSERT INTO files_fts(rowid, original_name) VALUES (new.id, new.original_name);
+END;
+CREATE TRIGGER IF NOT EXISTS files_fts_ad AFTER DELETE ON files BEGIN
+  INSERT INTO files_fts(files_fts, rowid, original_name) VALUES ('delete', old.id, old.original_name);
+END;
+CREATE TRIGGER IF NOT EXISTS files_fts_au AFTER UPDATE ON files BEGIN
+  INSERT INTO files_fts(files_fts, rowid, original_name) VALUES ('delete', old.id, old.original_name);
+  INSERT INTO files_fts(rowid, original_name) VALUES (new.id, new.original_name);
+END;
 `);
 
-// Migrasi ringan untuk DB lama yang dibuat sebelum kolom quota_bytes ada.
-const userCols = db.prepare("PRAGMA table_info(users)").all().map((c) => c.name);
-if (!userCols.includes('quota_bytes')) {
+// Migrasi ringan untuk DB lama yang dibuat sebelum kolom2 ini ada.
+const userCols2 = db.prepare("PRAGMA table_info(users)").all().map((c) => c.name);
+if (!userCols2.includes('quota_bytes')) {
   db.exec('ALTER TABLE users ADD COLUMN quota_bytes INTEGER NOT NULL DEFAULT 0');
+}
+if (!userCols2.includes('is_admin')) {
+  db.exec('ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0');
+}
+
+// User pertama yang pernah terdaftar otomatis jadi admin kalau belum ada
+// admin sama sekali (mis. setelah migrasi dari versi lama tanpa is_admin).
+const adminCount = db.prepare('SELECT COUNT(*) AS c FROM users WHERE is_admin = 1').get().c;
+if (adminCount === 0) {
+  const firstUser = db.prepare('SELECT id FROM users ORDER BY id ASC LIMIT 1').get();
+  if (firstUser) {
+    db.prepare('UPDATE users SET is_admin = 1 WHERE id = ?').run(firstUser.id);
+  }
+}
+
+// Backfill index FTS5 kalau ada file lama dari sebelum tabel files_fts ada
+// (external content FTS5 butuh diisi manual sekali untuk data yang sudah ada).
+const ftsCount = db.prepare('SELECT COUNT(*) AS c FROM files_fts').get().c;
+const filesCount = db.prepare('SELECT COUNT(*) AS c FROM files').get().c;
+if (ftsCount < filesCount) {
+  db.exec(`INSERT INTO files_fts(rowid, original_name) SELECT id, original_name FROM files
+           WHERE id NOT IN (SELECT rowid FROM files_fts)`);
 }
 
 module.exports = db;

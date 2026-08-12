@@ -15,6 +15,7 @@
         <span id="quotaText" class="quota-text"></span>
       </div>
       <span id="whoami"></span>
+      <a id="adminLink" href="admin.html" class="admin-link" hidden>⚙ Admin</a>
       <button id="logoutBtn">Keluar</button>
     </div>
   </header>
@@ -22,6 +23,9 @@
   <main class="drive-wrap">
     <div class="toolbar">
       <nav id="breadcrumb" class="breadcrumb"></nav>
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="🔍 Cari nama file..." />
+      </div>
       <div class="actions">
         <button id="newFolderBtn">+ Folder</button>
         <label class="upload-btn">
@@ -45,7 +49,15 @@
       <span id="uploadStatus"></span>
     </div>
 
-    <table class="drive-table">
+    <div id="searchResults" class="search-results" hidden>
+      <p id="searchInfo" class="search-info"></p>
+      <table class="drive-table">
+        <thead><tr><th>Nama</th><th>Lokasi</th><th>Ukuran</th><th></th></tr></thead>
+        <tbody id="searchBody"></tbody>
+      </table>
+    </div>
+
+    <table id="mainTable" class="drive-table">
       <thead>
         <tr><th>Nama</th><th>Ukuran</th><th>Tanggal</th><th></th></tr>
       </thead>
@@ -80,6 +92,7 @@
     </div>
   </div>
 
+<script src="auth.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

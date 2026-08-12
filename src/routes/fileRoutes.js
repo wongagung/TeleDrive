@@ -154,6 +154,58 @@ router.get('/list', (req, res) => {
   });
 });
 
+// ---------- Pencarian nama file (full-text, FTS5) ----------
+
+/** Bangun query FTS5 yang aman dari input user: tiap kata dikutip literal
+ * (supaya kata seperti "OR"/"NOT" tidak diartikan sebagai operator FTS5),
+ * dan diberi akhiran prefix match biar terasa "search-as-you-type". */
+function buildFtsQuery(raw) {
+  const tokens = raw.trim().split(/\s+/).filter(Boolean).slice(0, 8);
+  if (tokens.length === 0) return null;
+  return tokens.map((t) => `"${t.replace(/"/g, '""')}"*`).join(' ');
+}
+
+/** Path folder dari root sampai folderId, buat ditampilkan di hasil pencarian. */
+function getFolderPath(folderId, userId) {
+  const parts = [];
+  let current = folderId;
+  let guard = 0;
+  while (current !== null && current !== undefined && guard < 50) {
+    const folder = db.prepare('SELECT id, name, parent_id FROM folders WHERE id = ? AND user_id = ?').get(current, userId);
+    if (!folder) break;
+    parts.unshift(folder.name);
+    current = folder.parent_id;
+    guard++;
+  }
+  return parts;
+}
+
+router.get('/search', (req, res) => {
+  const q = (req.query.q || '').toString();
+  if (!q.trim()) return res.json({ files: [] });
+
+  const ftsQuery = buildFtsQuery(q);
+  if (!ftsQuery) return res.json({ files: [] });
+
+  let rows;
+  try {
+    rows = db
+      .prepare(
+        `SELECT files.id, files.original_name, files.size, files.mime_type, files.folder_id, files.created_at
+         FROM files_fts JOIN files ON files.id = files_fts.rowid
+         WHERE files_fts MATCH ? AND files.user_id = ?
+         ORDER BY rank LIMIT 50`
+      )
+      .all(ftsQuery, req.user.id);
+  } catch (err) {
+    // Query FTS5 yang aneh (mis. cuma simbol) bisa bikin MATCH error -- anggap saja tidak ada hasil.
+    return res.json({ files: [] });
+  }
+
+  const files = rows.map((f) => ({ ...f, folder_path: getFolderPath(f.folder_id, req.user.id) }));
+  res.json({ files });
+});
+
 // ---------- Rename / pindah file ----------
 
 router.patch('/files/:id', (req, res) => {

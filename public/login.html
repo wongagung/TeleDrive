@@ -4,31 +4,24 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Masuk — Telegram Drive</title>
-<link rel="stylesheet" href="style.css?v=20260812" />
+<link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <main class="auth-wrap">
-    <section class="auth-card" aria-label="Autentikasi Telegram Drive">
-      <div class="auth-brand">
-        <div class="auth-logo" aria-hidden="true">📁</div>
-      </div>
+  <div class="auth-wrap">
+    <div class="auth-card">
       <h1>Telegram Drive</h1>
-      <p class="auth-subtitle">Simpan dan kelola file Anda dengan mudah.</p>
-
-      <div class="tabs" role="tablist" aria-label="Autentikasi">
-        <button id="tabLogin" class="tab active" type="button" role="tab" aria-selected="true">Masuk</button>
-        <button id="tabRegister" class="tab" type="button" role="tab" aria-selected="false">Daftar</button>
+      <div class="tabs">
+        <button id="tabLogin" class="tab active">Login</button>
+        <button id="tabRegister" class="tab">Daftar</button>
       </div>
-
-      <form id="authForm" autocomplete="on">
+      <form id="authForm">
         <input type="text" id="username" placeholder="Username" required autocomplete="username" />
         <input type="password" id="password" placeholder="Password" required autocomplete="current-password" />
         <button type="submit" id="submitBtn">Masuk</button>
       </form>
-
-      <p id="msg" class="msg" role="alert" aria-live="polite"></p>
-    </section>
-  </main>
-<script src="login.js?v=20260812"></script>
+      <p id="msg" class="msg"></p>
+    </div>
+  </div>
+<script src="login.js"></script>
 </body>
 </html>

@@ -31,8 +31,16 @@ function escapeHtml(str) {
 }
 
 function isPreviewable(mime) {
-  return mime && (mime.startsWith('image/') || mime === 'application/pdf');
+  return mime && (
+    mime.startsWith('image/') || mime === 'application/pdf' ||
+    mime.startsWith('video/') || mime.startsWith('audio/')
+  );
 }
+
+const CATEGORY_ICONS = {
+  dokumen: '📄', gambar: '🖼️', video: '🎬', audio: '🎵', arsip: '🗜️', lainnya: '📦',
+};
+function categoryIcon(category) { return CATEGORY_ICONS[category] || '📦'; }
 
 // ---------- Breadcrumb & list utama ----------
 
@@ -53,16 +61,18 @@ function renderBreadcrumb() {
   });
 }
 
+let viewMode = localStorage.getItem('td_view_mode') || 'list';
+let lastData = null; // cache data terakhir biar toggle view gak perlu fetch ulang ke server
+
 async function loadList() {
   renderBreadcrumb();
   const q = currentFolder ? `?folder_id=${currentFolder}` : '';
   const res = await api(`/api/drive/list${q}`);
   const data = await res.json();
+  lastData = data;
 
   renderQuota(data.quota);
 
-  const body = document.getElementById('listBody');
-  body.innerHTML = '';
   const empty = document.getElementById('emptyMsg');
   empty.hidden = data.folders.length + data.files.length > 0;
 
@@ -71,6 +81,30 @@ async function loadList() {
   const visibleFileIds = new Set(data.files.map((f) => f.id));
   selectedFolders.forEach((id) => { if (!visibleFolderIds.has(id)) selectedFolders.delete(id); });
   selectedFiles.forEach((id) => { if (!visibleFileIds.has(id)) selectedFiles.delete(id); });
+
+  renderCurrentView();
+}
+
+function renderCurrentView() {
+  if (!lastData) return;
+  const mainTableEl = document.getElementById('mainTable');
+  const gridViewEl = document.getElementById('gridView');
+
+  if (viewMode === 'grid') {
+    mainTableEl.hidden = true;
+    gridViewEl.hidden = false;
+    renderGridView(lastData);
+  } else {
+    mainTableEl.hidden = false;
+    gridViewEl.hidden = true;
+    renderTableView(lastData);
+  }
+  renderBulkToolbar();
+}
+
+function renderTableView(data) {
+  const body = document.getElementById('listBody');
+  body.innerHTML = '';
 
   data.folders.forEach((f) => {
     const tr = document.createElement('tr');
@@ -123,11 +157,11 @@ async function loadList() {
 
   data.files.forEach((f) => {
     const tr = document.createElement('tr');
-    const icon = isPreviewable(f.mime_type) ? '🖼️' : '📄';
+    const icon = categoryIcon(f.category);
     tr.innerHTML = `
-      <td class="name-cell">
+      <td class="name-cell cat-${f.category}">
         <input type="checkbox" class="row-check" data-file-check="${f.id}" ${selectedFiles.has(f.id) ? 'checked' : ''} />
-        ${icon} ${escapeHtml(f.original_name)}
+        <span class="cat-dot"></span>${icon} ${escapeHtml(f.original_name)}
       </td>
       <td>${fmtSize(f.size)}</td>
       <td>${new Date(f.created_at).toLocaleDateString('id-ID')}</td>
@@ -169,9 +203,148 @@ async function loadList() {
     };
     body.appendChild(tr);
   });
-
-  renderBulkToolbar();
 }
+
+function renderGridView(data) {
+  const container = document.getElementById('gridView');
+  container.innerHTML = '';
+
+  data.folders.forEach((f) => {
+    const card = document.createElement('div');
+    card.className = 'grid-card';
+    card.innerHTML = `
+      <input type="checkbox" class="grid-card-check" data-folder-check="${f.id}" ${selectedFolders.has(f.id) ? 'checked' : ''} />
+      <div class="grid-card-actions">
+        <button data-rename-folder title="Rename">✏️</button>
+        <button data-move-folder title="Pindah">📂</button>
+        <button data-del-folder title="Hapus">🗑</button>
+      </div>
+      <div class="grid-card-thumb">📁</div>
+      <div class="grid-card-name">${escapeHtml(f.name)}</div>
+      <div class="grid-card-meta">Folder</div>
+    `;
+    card.querySelector('[data-folder-check]').onclick = (e) => {
+      e.stopPropagation();
+      toggleSelect('folder', f.id, e.target.checked);
+    };
+    card.onclick = (e) => {
+      if (e.target.closest('input') || e.target.closest('button')) return;
+      folderStack.push({ id: f.id, name: f.name });
+      currentFolder = f.id;
+      loadList();
+    };
+    card.querySelector('[data-rename-folder]').onclick = async (e) => {
+      e.stopPropagation();
+      const newName = prompt('Nama baru:', f.name);
+      if (!newName || newName === f.name) return;
+      const res = await api(`/api/drive/folders/${f.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName }),
+      });
+      if (res.ok) loadList(); else alert((await res.json()).error);
+    };
+    card.querySelector('[data-move-folder]').onclick = (e) => {
+      e.stopPropagation();
+      openMovePicker('folder', f.id, f.name);
+    };
+    card.querySelector('[data-del-folder]').onclick = async (e) => {
+      e.stopPropagation();
+      if (!confirm(`Hapus folder "${f.name}" beserta isinya?`)) return;
+      await api(`/api/drive/folders/${f.id}`, { method: 'DELETE' });
+      loadList();
+    };
+    container.appendChild(card);
+  });
+
+  data.files.forEach((f) => {
+    const card = document.createElement('div');
+    card.className = `grid-card cat-${f.category}`;
+
+    const isImage = f.mime_type && f.mime_type.startsWith('image/');
+    const isVideo = f.mime_type && f.mime_type.startsWith('video/');
+    let thumbHtml;
+    if (isImage) {
+      thumbHtml = `<img src="${previewUrl(f.id)}" alt="${escapeHtml(f.original_name)}" loading="lazy" />`;
+    } else if (isVideo) {
+      thumbHtml = `<span>${categoryIcon(f.category)}</span><div class="play-badge">▶</div>`;
+    } else {
+      thumbHtml = categoryIcon(f.category);
+    }
+
+    card.innerHTML = `
+      <input type="checkbox" class="grid-card-check" data-file-check="${f.id}" ${selectedFiles.has(f.id) ? 'checked' : ''} />
+      <div class="grid-card-actions">
+        ${isPreviewable(f.mime_type) ? '<button data-preview title="Lihat">👁</button>' : ''}
+        <button data-dl title="Download">⬇</button>
+        <button data-rename-file title="Rename">✏️</button>
+        <button data-move-file title="Pindah">📂</button>
+        <button data-del-file title="Hapus">🗑</button>
+      </div>
+      <div class="grid-card-thumb">${thumbHtml}</div>
+      <div class="grid-card-name">${escapeHtml(f.original_name)}</div>
+      <div class="grid-card-meta">${fmtSize(f.size)}</div>
+    `;
+
+    const img = card.querySelector('img');
+    if (img) img.onerror = () => { card.querySelector('.grid-card-thumb').textContent = categoryIcon(f.category); };
+
+    card.querySelector('[data-file-check]').onclick = (e) => {
+      e.stopPropagation();
+      toggleSelect('file', f.id, e.target.checked);
+    };
+    if (isPreviewable(f.mime_type)) {
+      card.onclick = (e) => {
+        if (e.target.closest('input') || e.target.closest('button')) return;
+        openPreview(f.id, f.original_name, f.mime_type);
+      };
+      const pv = card.querySelector('[data-preview]');
+      if (pv) pv.onclick = (e) => { e.stopPropagation(); openPreview(f.id, f.original_name, f.mime_type); };
+    }
+    card.querySelector('[data-dl]').onclick = (e) => { e.stopPropagation(); downloadWithAuth(f.id, f.original_name); };
+    card.querySelector('[data-rename-file]').onclick = async (e) => {
+      e.stopPropagation();
+      const newName = prompt('Nama baru:', f.original_name);
+      if (!newName || newName === f.original_name) return;
+      const res = await api(`/api/drive/files/${f.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName }),
+      });
+      if (res.ok) loadList(); else alert((await res.json()).error);
+    };
+    card.querySelector('[data-move-file]').onclick = (e) => { e.stopPropagation(); openMovePicker('file', f.id, f.original_name); };
+    card.querySelector('[data-del-file]').onclick = async (e) => {
+      e.stopPropagation();
+      if (!confirm(`Hapus "${f.original_name}"?`)) return;
+      await api(`/api/drive/files/${f.id}`, { method: 'DELETE' });
+      loadList();
+    };
+    container.appendChild(card);
+  });
+}
+
+// ---------- Toggle List / Grid ----------
+
+const viewListBtn = document.getElementById('viewListBtn');
+const viewGridBtn = document.getElementById('viewGridBtn');
+
+function updateViewToggleUI() {
+  viewListBtn.classList.toggle('active', viewMode === 'list');
+  viewGridBtn.classList.toggle('active', viewMode === 'grid');
+}
+
+viewListBtn.onclick = () => {
+  viewMode = 'list';
+  localStorage.setItem('td_view_mode', viewMode);
+  updateViewToggleUI();
+  renderCurrentView();
+};
+viewGridBtn.onclick = () => {
+  viewMode = 'grid';
+  localStorage.setItem('td_view_mode', viewMode);
+  updateViewToggleUI();
+  renderCurrentView();
+};
+updateViewToggleUI();
 
 function renderQuota(quota) {
   if (!quota) return;
@@ -192,7 +365,7 @@ function toggleSelect(type, id, checked) {
 function clearSelection() {
   selectedFiles.clear();
   selectedFolders.clear();
-  document.querySelectorAll('.row-check').forEach((cb) => { cb.checked = false; });
+  document.querySelectorAll('.row-check, .grid-card-check').forEach((cb) => { cb.checked = false; });
   renderBulkToolbar();
 }
 
@@ -256,32 +429,49 @@ const previewTitle = document.getElementById('previewTitle');
 document.getElementById('previewClose').onclick = closePreview;
 previewModal.onclick = (e) => { if (e.target === previewModal) closePreview(); };
 
-let previewObjectUrl = null;
-async function openPreview(id, name, mime) {
+/** URL langsung ke endpoint preview, token lewat query param karena elemen
+ * <video>/<audio>/<img> tidak bisa kirim header Authorization custom.
+ * Dipakai langsung sebagai `src` (bukan fetch+blob) supaya browser bisa
+ * kirim HTTP Range request sendiri -- itu yang bikin video bisa di-seek
+ * kayak YouTube tanpa nunggu download penuh dulu. */
+function previewUrl(id) {
+  return `/api/drive/preview/${id}?token=${encodeURIComponent(getToken())}`;
+}
+
+function openPreview(id, name, mime) {
   previewTitle.textContent = name;
-  previewBody.innerHTML = '<p class="loading">Memuat...</p>';
   previewModal.hidden = false;
+  const url = previewUrl(id);
 
-  try {
-    const res = await api(`/api/drive/preview/${id}`);
-    if (!res.ok) throw new Error((await res.json()).error || 'Gagal memuat preview');
-    const blob = await res.blob();
-    previewObjectUrl = URL.createObjectURL(blob);
-
-    if (mime.startsWith('image/')) {
-      previewBody.innerHTML = `<img src="${previewObjectUrl}" alt="${escapeHtml(name)}" />`;
-    } else if (mime === 'application/pdf') {
-      previewBody.innerHTML = `<iframe src="${previewObjectUrl}"></iframe>`;
-    }
-  } catch (err) {
-    previewBody.innerHTML = `<p class="error">${escapeHtml(err.message)}</p>`;
+  if (mime.startsWith('image/')) {
+    previewBody.innerHTML = `<img src="${url}" alt="${escapeHtml(name)}" />`;
+    previewBody.querySelector('img').onerror = () => {
+      previewBody.innerHTML = '<p class="error">Gagal memuat gambar.</p>';
+    };
+  } else if (mime === 'application/pdf') {
+    previewBody.innerHTML = `<iframe src="${url}"></iframe>`;
+  } else if (mime.startsWith('video/')) {
+    previewBody.innerHTML = `<video src="${url}" controls autoplay preload="metadata"></video>`;
+    previewBody.querySelector('video').onerror = () => {
+      previewBody.innerHTML = '<p class="error">Gagal memuat video.</p>';
+    };
+  } else if (mime.startsWith('audio/')) {
+    previewBody.innerHTML = `<audio src="${url}" controls autoplay></audio>`;
+    previewBody.querySelector('audio').onerror = () => {
+      previewBody.innerHTML = '<p class="error">Gagal memuat audio.</p>';
+    };
+  } else {
+    previewBody.innerHTML = '<p class="error">Tipe file ini tidak didukung untuk preview.</p>';
   }
 }
 
 function closePreview() {
+  // Hentikan playback video/audio yang lagi jalan SEBELUM modal ditutup,
+  // supaya suaranya gak tetap muter di background.
+  const media = previewBody.querySelector('video, audio');
+  if (media) { media.pause(); media.removeAttribute('src'); media.load(); }
   previewModal.hidden = true;
   previewBody.innerHTML = '';
-  if (previewObjectUrl) { URL.revokeObjectURL(previewObjectUrl); previewObjectUrl = null; }
 }
 
 // ---------- Move picker (folder & file) ----------
@@ -520,8 +710,8 @@ searchInput.addEventListener('input', () => {
 
 function exitSearchMode() {
   searchResults.hidden = true;
-  mainTable.hidden = false;
   document.getElementById('breadcrumb').hidden = false;
+  renderCurrentView(); // balik ke list ATAU grid, sesuai viewMode yang lagi aktif
 }
 
 async function runSearch(q) {
@@ -530,6 +720,7 @@ async function runSearch(q) {
   const data = await res.json();
 
   mainTable.hidden = true;
+  document.getElementById('gridView').hidden = true;
   document.getElementById('breadcrumb').hidden = true;
   document.getElementById('emptyMsg').hidden = true;
   searchResults.hidden = false;
@@ -541,10 +732,10 @@ async function runSearch(q) {
   searchBody.innerHTML = '';
   data.files.forEach((f) => {
     const tr = document.createElement('tr');
-    const icon = isPreviewable(f.mime_type) ? '🖼️' : '📄';
+    const icon = categoryIcon(f.category);
     const location = f.folder_path.length ? f.folder_path.join(' / ') : '🏠 Root';
     tr.innerHTML = `
-      <td class="name-cell">${icon} ${escapeHtml(f.original_name)}</td>
+      <td class="name-cell cat-${f.category}"><span class="cat-dot"></span>${icon} ${escapeHtml(f.original_name)}</td>
       <td class="search-location">${escapeHtml(location)}</td>
       <td>${fmtSize(f.size)}</td>
       <td class="row-actions"><button data-dl title="Download">⬇</button></td>

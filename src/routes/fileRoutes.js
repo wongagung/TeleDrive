@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const db = require('../db');
-const { getLocalFilePath, deleteMessage } = require('../telegram');
+const { getLocalFilePath, deleteMessage, classifyCategory } = require('../telegram');
 const { sendFileToTelegram, CHUNK_SIZE } = require('../uploadPipeline');
 const { requireAuth } = require('../middleware/authMiddleware');
 const { uploadLimiter, blockLimiter } = require('../middleware/rateLimiters');
@@ -19,7 +19,7 @@ fs.mkdirSync(SESSIONS_DIR, { recursive: true });
 const MAX_UPLOAD_MB = parseInt(process.env.MAX_UPLOAD_MB, 10) || 10240; // default 10GB/file
 const BLOCK_SIZE = (parseInt(process.env.UPLOAD_BLOCK_SIZE_MB, 10) || 8) * 1024 * 1024; // default 8MB/block
 
-const PREVIEWABLE_MIME = /^image\/|^application\/pdf$/;
+const PREVIEWABLE_MIME = /^image\/|^application\/pdf$|^video\/|^audio\//;
 
 // ---------- Helper: ownership & cycle checks ----------
 
@@ -145,7 +145,8 @@ router.get('/list', (req, res) => {
     .prepare(
       'SELECT id, original_name, size, mime_type, created_at FROM files WHERE user_id = ? AND (folder_id IS ? OR folder_id = ?) ORDER BY created_at DESC'
     )
-    .all(req.user.id, folderId, folderId);
+    .all(req.user.id, folderId, folderId)
+    .map((f) => ({ ...f, category: classifyCategory(f.original_name, f.mime_type) }));
 
   res.json({
     folders,
@@ -202,7 +203,11 @@ router.get('/search', (req, res) => {
     return res.json({ files: [] });
   }
 
-  const files = rows.map((f) => ({ ...f, folder_path: getFolderPath(f.folder_id, req.user.id) }));
+  const files = rows.map((f) => ({
+    ...f,
+    folder_path: getFolderPath(f.folder_id, req.user.id),
+    category: classifyCategory(f.original_name, f.mime_type),
+  }));
   res.json({ files });
 });
 
@@ -370,23 +375,85 @@ router.post('/upload/:id/complete', uploadLimiter, async (req, res) => {
 
 // ---------- Download & Preview (reassemble chunk dari Telegram kalau perlu) ----------
 
-async function streamFileChunks(file, res, disposition) {
+/** Parse header Range HTTP standar ("bytes=start-end"). Return null kalau
+ * tidak ada/tidak valid format, atau string 'invalid' kalau rentangnya di
+ * luar ukuran file (buat balikin 416). */
+function parseRange(rangeHeader, totalSize) {
+  if (!rangeHeader) return null;
+  const match = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader);
+  if (!match) return null;
+
+  let [, startStr, endStr] = match;
+  if (!startStr && !endStr) return null;
+
+  let start, end;
+  if (!startStr) {
+    // suffix range, contoh "bytes=-500" = 500 byte terakhir
+    const suffixLength = parseInt(endStr, 10);
+    start = Math.max(0, totalSize - suffixLength);
+    end = totalSize - 1;
+  } else {
+    start = parseInt(startStr, 10);
+    end = endStr ? parseInt(endStr, 10) : totalSize - 1;
+  }
+
+  if (Number.isNaN(start) || Number.isNaN(end) || start > end || start < 0 || end >= totalSize) {
+    return 'invalid';
+  }
+  return { start, end };
+}
+
+/** Stream rentang byte [start, end] (inklusif) dari file yang mungkin
+ * kepecah jadi beberapa chunk Telegram, dengan memetakan rentang global ke
+ * rentang lokal per chunk. Ini yang bikin video bisa di-seek/scrub. */
+async function streamByteRange(file, start, end, res) {
   const chunks = JSON.parse(file.chunks).sort((a, b) => a.seq - b.seq);
 
-  res.setHeader('Content-Disposition', `${disposition}; filename="${encodeURIComponent(file.original_name)}"`);
-  res.setHeader('Content-Type', file.mime_type || 'application/octet-stream');
-  res.setHeader('Content-Length', file.size);
-
+  let cumulativeOffset = 0;
   for (const chunk of chunks) {
+    const chunkStart = cumulativeOffset;
+    const chunkEnd = cumulativeOffset + chunk.size - 1;
+    cumulativeOffset += chunk.size;
+
+    if (end < chunkStart || start > chunkEnd) continue; // chunk ini di luar rentang yang diminta
+
+    const localStart = Math.max(0, start - chunkStart);
+    const localEnd = Math.min(chunk.size - 1, end - chunkStart);
+
     const localPath = await getLocalFilePath(chunk.tg_file_id);
     await new Promise((resolve, reject) => {
-      const stream = fs.createReadStream(localPath);
+      const stream = fs.createReadStream(localPath, { start: localStart, end: localEnd });
       stream.on('error', reject);
       stream.on('end', resolve);
       stream.pipe(res, { end: false });
     });
+
+    if (cumulativeOffset > end) break; // sudah lewat rentang yang diminta, gak perlu chunk berikutnya
   }
   res.end();
+}
+
+async function streamFile(file, res, req, disposition) {
+  res.setHeader('Content-Disposition', `${disposition}; filename="${encodeURIComponent(file.original_name)}"`);
+  res.setHeader('Content-Type', file.mime_type || 'application/octet-stream');
+  res.setHeader('Accept-Ranges', 'bytes'); // wajib biar <video>/<audio> tahu boleh minta Range
+
+  const range = parseRange(req.headers.range, file.size);
+
+  if (range === 'invalid') {
+    res.setHeader('Content-Range', `bytes */${file.size}`);
+    return res.status(416).end();
+  }
+
+  if (range) {
+    res.status(206);
+    res.setHeader('Content-Range', `bytes ${range.start}-${range.end}/${file.size}`);
+    res.setHeader('Content-Length', range.end - range.start + 1);
+    await streamByteRange(file, range.start, range.end, res);
+  } else {
+    res.setHeader('Content-Length', file.size);
+    await streamByteRange(file, 0, file.size - 1, res);
+  }
 }
 
 router.get('/download/:id', async (req, res) => {
@@ -394,7 +461,7 @@ router.get('/download/:id', async (req, res) => {
   if (!file) return res.status(404).json({ error: 'File tidak ditemukan' });
 
   try {
-    await streamFileChunks(file, res, 'attachment');
+    await streamFile(file, res, req, 'attachment');
   } catch (err) {
     console.error('[download] error:', err);
     if (!res.headersSent) res.status(500).json({ error: 'Gagal mengambil file dari Telegram' });
@@ -402,8 +469,9 @@ router.get('/download/:id', async (req, res) => {
   }
 });
 
-// Preview inline di browser — dibatasi hanya gambar & PDF supaya tidak ada
-// risiko file lain (mis. HTML) dirender inline di origin yang sama.
+// Preview inline di browser — gambar, PDF, video, dan audio. Dibatasi ke
+// tipe ini supaya tidak ada risiko file lain (mis. HTML) dirender inline
+// di origin yang sama (self-XSS lewat file yang diupload sendiri).
 router.get('/preview/:id', async (req, res) => {
   const file = db.prepare('SELECT * FROM files WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
   if (!file) return res.status(404).json({ error: 'File tidak ditemukan' });
@@ -413,7 +481,7 @@ router.get('/preview/:id', async (req, res) => {
   }
 
   try {
-    await streamFileChunks(file, res, 'inline');
+    await streamFile(file, res, req, 'inline');
   } catch (err) {
     console.error('[preview] error:', err);
     if (!res.headersSent) res.status(500).json({ error: 'Gagal mengambil file dari Telegram' });

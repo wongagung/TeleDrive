@@ -310,7 +310,28 @@ jadi tidak perlu proses reindex manual.
 GET /api/drive/search?q=laporan+keuangan
 ```
 
+## 11. Tampilan List/Grid + Preview Video & Audio
+
+Toolbar drive sekarang punya toggle ☰ (list) / ▦ (grid) -- pilihan tersimpan di browser
+(localStorage), jadi diingat tiap buka lagi. Grid view nampilin thumbnail asli untuk gambar,
+badge ▶ untuk video, dan ikon per kategori untuk tipe lain.
+
+Preview sekarang juga support **video dan audio**, diputar inline di modal (bukan cuma
+download) dengan kontrol native browser (play/pause/seek/volume). Video bisa di-**scrub**
+(geser maju/mundur di timeline) walau filenya kepecah jadi beberapa chunk di Telegram --
+ini didukung lewat implementasi **HTTP Range Request** penuh di endpoint `/preview`, yang
+memetakan rentang byte yang diminta browser ke chunk Telegram yang sesuai secara otomatis.
+
+**Trade-off keamanan yang perlu kamu tahu**: tag `<video>`/`<audio>`/`<img>` HTML tidak bisa
+mengirim header `Authorization` custom, jadi endpoint preview menerima access token lewat
+query param (`?token=...`) sebagai fallback. Token ini tetap divalidasi persis sama seperti
+lewat header (termasuk cek revocation), tapi konsekuensinya token bisa kesimpan di history
+browser / access log server / `Referer` header kalau halaman pindah saat media masih
+loading. Risikonya dibatasi karena access token umurnya pendek (`ACCESS_TOKEN_EXPIRES_IN`,
+default 15 menit) -- tapi ini tetap trade-off yang sadar dilakukan, bukan kebetulan.
+
 ## Struktur Project
+
 
 ```
 telegram-drive/
@@ -323,18 +344,18 @@ telegram-drive/
 │   ├── quota.js                 # hitung & cek kuota penyimpanan per user
 │   ├── uploadPipeline.js        # logic bersama: chunking ke Telegram + simpan metadata
 │   ├── middleware/
-│   │   ├── authMiddleware.js    # verifikasi JWT + cek revoked_tokens + cek user masih ada
+│   │   ├── authMiddleware.js    # verifikasi JWT (header ATAU ?token=) + revoked_tokens + user masih ada
 │   │   ├── adminMiddleware.js   # guard requireAdmin
 │   │   └── rateLimiters.js      # rate limit login/register & upload
 │   └── routes/
 │       ├── authRoutes.js        # register/login/refresh/logout/me
 │       ├── adminRoutes.js       # list user, set kuota, promote/demote, hapus user
-│       └── fileRoutes.js        # folder CRUD+rename/move, resumable upload, download, preview,
-│                                 # bulk ops, search
+│       └── fileRoutes.js        # folder CRUD+rename/move, resumable upload, download, preview
+│                                 # (dengan Range request), bulk ops, search
 ├── public/
 │   ├── auth.js                  # shared: token storage, auto-refresh on 401, logout
 │   ├── login.html / login.js
-│   ├── index.html / app.js      # drive: multi-select, quota bar, search, modal preview & move
+│   ├── index.html / app.js      # drive: list/grid toggle, quota bar, search, preview (img/pdf/video/audio)
 │   └── admin.html / admin.js    # panel admin
 ├── scripts/
 │   ├── set-quota.js             # CLI: set kuota custom per user
@@ -354,7 +375,7 @@ telegram-drive/
 | POST   | /api/auth/refresh                      | -     | `{refresh_token}` -> access+refresh token baru   |
 | POST   | /api/auth/logout                       | v     | Cabut access token (+ refresh token kalau dikirim) |
 | GET    | /api/auth/me                           | v     | `{id, username, is_admin}`                       |
-| GET    | /api/drive/list?folder_id=             | v     | Isi folder + info quota                          |
+| GET    | /api/drive/list?folder_id=             | v     | Isi folder + info quota + kategori per file      |
 | GET    | /api/drive/search?q=                   | v     | Full-text search nama file lintas folder         |
 | GET    | /api/drive/quota                       | v     | `{used, quota}` dalam bytes                      |
 | POST   | /api/drive/folders                      | v     | `{name, parent_id}`                              |
@@ -366,8 +387,8 @@ telegram-drive/
 | GET    | /api/drive/upload/:id/status            | v     | Cek block yang sudah diterima (buat resume)      |
 | POST   | /api/drive/upload/:id/complete          | v     | Gabung block + kirim ke Telegram                 |
 | DELETE | /api/drive/upload/:id                   | v     | Batalkan sesi upload yang belum selesai          |
-| GET    | /api/drive/download/:id                 | v     | Download (attachment)                            |
-| GET    | /api/drive/preview/:id                  | v     | Preview inline (khusus image/* & PDF)            |
+| GET    | /api/drive/download/:id                 | v (header/query) | Download (attachment), support Range     |
+| GET    | /api/drive/preview/:id                  | v (header/query) | Preview inline (image/pdf/video/audio), support Range |
 | DELETE | /api/drive/files/:id                    | v     | Hapus satu file (+ coba hapus di grup)           |
 | POST   | /api/drive/bulk-delete                  | v     | `{file_ids[], folder_ids[]}` -- hapus banyak sekaligus |
 | POST   | /api/drive/bulk-move                    | v     | `{file_ids[], folder_ids[], target_folder_id}` -- pindah banyak sekaligus |
@@ -382,3 +403,4 @@ telegram-drive/
 - Kuota per-folder atau per-tipe-file (saat ini kuota flat per user)
 - Audit log aktivitas admin (siapa hapus/ubah apa, kapan)
 - Notifikasi email/Telegram DM ke user kalau kuotanya hampir penuh
+- Thumbnail video (grid view cuma nampilin ikon+badge play, bukan frame asli dari videonya)

@@ -4,7 +4,17 @@ const { isAccessTokenRevoked } = require('../tokenUtils');
 
 function requireAuth(req, res, next) {
   const header = req.headers.authorization || '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  let token = header.startsWith('Bearer ') ? header.slice(7) : null;
+
+  // Fallback: token lewat query param ?token=... -- KHUSUS dipakai buat tag
+  // <video>/<audio>/<img> yang src-nya langsung ke URL API (elemen HTML ini
+  // nggak bisa kirim header Authorization custom). Trade-off keamanan sadar:
+  // token bisa kesimpan di history browser / access log server / Referer
+  // header. Risikonya dibatasi karena access token umurnya pendek
+  // (ACCESS_TOKEN_EXPIRES_IN, default 15 menit).
+  if (!token && req.query && req.query.token) {
+    token = req.query.token;
+  }
 
   if (!token) return res.status(401).json({ error: 'Token tidak ada' });
 

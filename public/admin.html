@@ -5,31 +5,36 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Admin — Telegram Drive</title>
 <link rel="stylesheet" href="style.css" />
-<link rel="stylesheet" href="admin.css" />
-<link rel="stylesheet" href="unified-ui.css" />
 </head>
-<body class="admin-page">
-<header class="topbar admin-topbar">
-  <div class="admin-brand"><div class="admin-brand-icon">⚙</div><div><h1>Admin Panel</h1><span>Telegram Drive</span></div></div>
-  <div class="topbar-right">
-    <a href="index.html" class="admin-link">← Kembali ke Drive</a>
-    <span id="whoami" class="admin-whoami"></span>
-    <button id="logoutBtn">Keluar</button>
-  </div>
-</header>
-<main class="drive-wrap admin-wrap">
-  <div class="admin-hero"><div><div class="eyebrow">CONTROL CENTER</div><h2>Administrasi</h2><p>Kelola user, kuota, dan akses TeleDrive.</p></div><button id="refreshBtn" class="admin-refresh">↻ Refresh</button></div>
-  <div id="statsRow" class="stats-row admin-stats"></div>
-  <div class="section-heading"><h2>Semua User</h2><span id="userCount" class="user-count"></span></div>
-  <div class="admin-table-card"><div class="admin-table-scroll"><table class="drive-table admin-table"><thead><tr><th>Username</th><th>Terdaftar</th><th>Storage</th><th>Admin</th><th class="actions-head"></th></tr></thead><tbody id="userBody"></tbody></table></div></div>
-</main>
-<div id="quotaModal" class="admin-modal" hidden><div class="admin-modal-card">
-  <div class="admin-modal-head"><div><div class="eyebrow">STORAGE</div><h3>Ubah Kuota</h3></div><button id="quotaClose" class="modal-close">✕</button></div>
-  <p id="quotaUser" class="modal-muted"></p>
-  <label class="admin-field">Kuota (MB)<input id="quotaInput" type="number" min="0" step="1"><small>0 = gunakan default global.</small></label>
-  <div class="admin-modal-actions"><button id="quotaCancel" class="secondary-btn">Batal</button><button id="quotaSave" class="primary-btn">Simpan</button></div>
-</div></div>
-<div id="adminToast" class="admin-toast" hidden></div>
-<script src="auth.js"></script><script src="admin.js"></script><script src="unified-ui.js"></script>
+<body>
+  <header class="topbar">
+    <h1>⚙ Admin Panel</h1>
+    <div class="topbar-right">
+      <a href="index.html" class="admin-link">← Kembali ke Drive</a>
+      <span id="whoami"></span>
+      <button id="logoutBtn">Keluar</button>
+    </div>
+  </header>
+
+  <main class="drive-wrap">
+    <div id="statsRow" class="stats-row"></div>
+
+    <h2 class="section-title">Semua User</h2>
+    <table class="drive-table">
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Terdaftar</th>
+          <th>Storage</th>
+          <th>Admin</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="userBody"></tbody>
+    </table>
+  </main>
+
+<script src="auth.js"></script>
+<script src="admin.js"></script>
 </body>
 </html>

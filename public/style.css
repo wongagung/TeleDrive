@@ -294,3 +294,71 @@ h1, h2, h3 { letter-spacing: -0.01em; font-weight: 700; }
   .stats-row { flex-direction: column; }
   .grid-view { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
 }
+
+/* ===== TABLE ALIGNMENT FIX =====
+   Satu garis untuk satu baris agar separator tidak terlihat menceng.
+*/
+.drive-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+.drive-table th,
+.drive-table td {
+  box-sizing: border-box;
+  vertical-align: middle;
+}
+
+.drive-table th {
+  height: 42px;
+  padding: 0 18px;
+  border-bottom: 0;
+}
+
+.drive-table td {
+  height: 48px;
+  padding: 0 18px;
+  border-bottom: 0;
+}
+
+/* Separator digambar sekali untuk seluruh row, bukan terpisah per-cell. */
+.drive-table tbody tr {
+  height: 48px;
+  background-image: linear-gradient(to right, rgba(255,255,255,.045), rgba(255,255,255,.045));
+  background-repeat: no-repeat;
+  background-position: left bottom;
+  background-size: 100% 1px;
+}
+
+.drive-table tbody tr:hover {
+  background-color: rgba(255,255,255,.035);
+  background-image: linear-gradient(to right, rgba(255,255,255,.09), rgba(255,255,255,.09));
+  background-repeat: no-repeat;
+  background-position: left bottom;
+  background-size: 100% 1px;
+}
+
+.drive-table th:nth-child(1),
+.drive-table td:nth-child(1) { width: 52%; }
+.drive-table th:nth-child(2),
+.drive-table td:nth-child(2) { width: 10%; }
+.drive-table th:nth-child(3),
+.drive-table td:nth-child(3) { width: 18%; }
+.drive-table th:nth-child(4),
+.drive-table td:nth-child(4) { width: 20%; }
+
+.name-cell {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row-actions {
+  text-align: right;
+  vertical-align: middle;
+}
+
+.row-actions button { vertical-align: middle; }

@@ -23,6 +23,7 @@
   let navForward = [];
   let navReady = false;
   let navBusy = false;
+  let folderClickBusy = false;
   let lastFolderId = undefined;
 
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -377,31 +378,32 @@
     cb.indeterminate = selected > 0 && selected < total;
   }
 
-  function preventRapidFolderClicks() {
-    document.addEventListener('click', (e) => {
-      const target = e.target.closest('.name-cell, .grid-card');
-      if (!target) return;
+function preventRapidFolderClicks() {
+  let folderClickBusy = false;
 
-      const folderCheck = target.querySelector('[data-folder-check]');
-      if (!folderCheck) return;
+  document.addEventListener('click', (e) => {
+    const target = e.target.closest('.name-cell, .grid-card');
+    if (!target) return;
 
-      if (navBusy) {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        return;
-      }
+    const folderCheck = target.querySelector('[data-folder-check]');
+    if (!folderCheck) return;
 
-      navBusy = true;
-      updateNavButtons();
+    // Cegah folder yang sama/berbeda diklik berkali-kali
+    // tanpa mengganggu navBusy milik Back/Forward.
+    if (folderClickBusy) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      return;
+    }
 
-      // Existing app handler performs the actual navigation.
-      // Release lock after the next render/request cycle.
-      setTimeout(() => {
-        navBusy = false;
-        updateNavButtons();
-      }, 700);
-    }, true);
-  }
+    folderClickBusy = true;
+
+    // Lepaskan lock setelah navigasi selesai.
+    setTimeout(() => {
+      folderClickBusy = false;
+    }, 700);
+  }, true);
+}
 
   function init() {
     makeNavButtons();

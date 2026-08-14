@@ -10,11 +10,22 @@
 <link rel="stylesheet" href="navigation-columns.css" />
 <link rel="stylesheet" href="grid-toggle-fix.css" />
 <link rel="stylesheet" href="grid-actions-fix.css" />
+<link rel="stylesheet" href="header-search.css" />
 <script src="theme-layout.js" defer></script>
 </head>
 <body>
   <header class="topbar">
-    <h1>📁 Telegram Drive</h1>
+    <div class="topbar-brand">
+      <h1>📁 Telegram Drive</h1>
+    </div>
+
+    <div class="topbar-search">
+      <div class="search-box">
+        <span class="topbar-search-icon" aria-hidden="true">🔍</span>
+        <input type="text" id="searchInput" placeholder="Cari nama file..." autocomplete="off" />
+      </div>
+    </div>
+
     <div class="topbar-right">
       <div class="quota-box">
         <div class="bar quota-bar"><div id="quotaBarFill" class="bar-fill"></div></div>
@@ -30,9 +41,6 @@
   <main class="drive-wrap">
     <div class="toolbar">
       <nav id="breadcrumb" class="breadcrumb"></nav>
-      <div class="search-box">
-        <input type="text" id="searchInput" placeholder="🔍 Cari nama file..." />
-      </div>
       <div class="actions">
         <div class="view-toggle">
           <button id="viewListBtn" title="Tampilan list">☰</button>

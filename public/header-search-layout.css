@@ -1,0 +1,148 @@
+/* TeleDrive - final header/table alignment fix */
+
+/* Keep search bar in the top header. It does NOT remove the search UI. */
+.topbar { position: sticky; top: 0; z-index: 50; }
+.toolbar .search-box {
+  position: fixed !important;
+  top: 13px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: min(360px, 34vw) !important;
+  max-width: 360px !important;
+  z-index: 60 !important;
+  margin: 0 !important;
+  flex: none !important;
+}
+.toolbar .search-box #searchInput {
+  width: 100% !important;
+  height: 40px !important;
+  box-sizing: border-box !important;
+}
+
+/* Toolbar: breadcrumb and buttons never compete with the search box. */
+.toolbar {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+.toolbar > .breadcrumb { flex: 1 1 auto !important; min-width: 0 !important; }
+.toolbar > .actions { flex: 0 0 auto !important; }
+
+/* ===== TABLE =====
+   The old .name-cell { display:flex } changes a TD from table-cell to flex,
+   which is the main reason the Name text can paint into Size/Date columns.
+*/
+.table-scroll {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+}
+
+.drive-table {
+  width: 100% !important;
+  min-width: 900px !important;
+  table-layout: fixed !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
+.drive-table th,
+.drive-table td {
+  box-sizing: border-box !important;
+  vertical-align: middle !important;
+}
+
+/* Restore real table-cell behavior. */
+.drive-table td.name-cell,
+.drive-table th:first-child {
+  display: table-cell !important;
+}
+
+.drive-table th { height: 42px !important; padding: 0 10px !important; }
+.drive-table td { height: 48px !important; padding: 0 10px !important; }
+
+/* Fixed, predictable column proportions. */
+.drive-table th:nth-child(1), .drive-table td:nth-child(1) { width: 48% !important; }
+.drive-table th:nth-child(2), .drive-table td:nth-child(2) { width: 15% !important; }
+.drive-table th:nth-child(3), .drive-table td:nth-child(3) { width: 17% !important; }
+.drive-table th:nth-child(4), .drive-table td:nth-child(4) { width: 20% !important; }
+
+/* Never let Size/Date paint over neighboring cells. */
+.drive-table td:nth-child(2),
+.drive-table td:nth-child(3) {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.drive-table td.row-actions,
+.drive-table th:nth-child(4) {
+  white-space: nowrap !important;
+  overflow: visible !important;
+  text-align: right !important;
+}
+
+/* Keep separator perfectly straight across the entire row. */
+.drive-table tbody tr { position: relative; }
+.drive-table tbody tr::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--border);
+  pointer-events: none;
+}
+.drive-table tbody td { border-bottom: 0 !important; }
+
+/* Name cell itself is clipped; JS adds .name-text-scroll around the text. */
+.drive-table td.name-cell {
+  min-width: 0 !important;
+  max-width: 0 !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+}
+.drive-table td.name-cell .row-check {
+  display: inline-block !important;
+  vertical-align: middle !important;
+  margin-right: 7px !important;
+}
+.name-text-scroll {
+  display: inline-block !important;
+  vertical-align: middle !important;
+  max-width: calc(100% - 34px) !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: clip !important;
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-faint) transparent;
+}
+.name-text-scroll::-webkit-scrollbar { height: 4px; }
+.name-text-scroll::-webkit-scrollbar-thumb { background: var(--text-faint); border-radius: 4px; }
+
+/* Existing resize handles stay usable. */
+.column-resizer {
+  position: absolute !important;
+  top: 0 !important;
+  right: -4px !important;
+  width: 8px !important;
+  height: 100% !important;
+  cursor: col-resize !important;
+  z-index: 20 !important;
+}
+.drive-table th { position: relative !important; }
+
+@media (max-width: 700px) {
+  .toolbar .search-box {
+    position: static !important;
+    transform: none !important;
+    width: 100% !important;
+    max-width: none !important;
+    order: 3 !important;
+  }
+  .toolbar { flex-wrap: wrap !important; }
+  .drive-table { min-width: 820px !important; }
+}

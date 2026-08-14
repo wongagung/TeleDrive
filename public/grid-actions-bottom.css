@@ -1,0 +1,106 @@
+
+/*
+ * TeleDrive Grid Actions — bottom placement
+ * Put the action buttons exactly in the empty bottom area of each grid card.
+ * Checkbox remains at the top-right and is never covered.
+ */
+
+.grid-card {
+  position: relative !important;
+  overflow: hidden;
+  padding-bottom: 52px !important;
+}
+
+/* The action row belongs to the card footer, not the top overlay. */
+.grid-card .grid-card-actions {
+  position: absolute !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  top: auto !important;
+
+  width: 100% !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  margin: 0 !important;
+  padding: 5px 8px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 5px !important;
+
+  border-top: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  background: var(--surface-raised, var(--surface)) !important;
+
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+  z-index: 6 !important;
+}
+
+/* Buttons are compact and stay inside the red-marked footer area. */
+.grid-card .grid-card-actions button {
+  position: static !important;
+  flex: 0 0 30px !important;
+  width: 30px !important;
+  min-width: 30px !important;
+  max-width: 30px !important;
+  height: 30px !important;
+  min-height: 30px !important;
+  max-height: 30px !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  border: 1px solid var(--border) !important;
+  border-radius: 7px !important;
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  box-shadow: none !important;
+  line-height: 1 !important;
+  cursor: pointer;
+}
+
+.grid-card .grid-card-actions button:hover {
+  background: var(--surface-hover) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+}
+
+.grid-card .grid-card-actions button:active {
+  transform: translateY(1px);
+}
+
+/* Delete actions retain a clear danger state. */
+.grid-card .grid-card-actions button[data-del-file]:hover,
+.grid-card .grid-card-actions button[data-del-folder]:hover,
+.grid-card .grid-card-actions .danger:hover {
+  background: var(--danger-dim, rgba(239,68,68,.10)) !important;
+  border-color: var(--danger, #ef4444) !important;
+  color: var(--danger, #ef4444) !important;
+}
+
+/* Checkbox stays in its own top corner. */
+.grid-card .grid-card-check,
+.grid-card input[type="checkbox"] {
+  z-index: 10 !important;
+}
+
+/* Prevent the filename/details area from entering the footer. */
+.grid-card > *:not(.grid-card-actions):not(.grid-card-check) {
+  max-width: 100%;
+}
+
+/* Mobile/touch: footer buttons remain visible. */
+@media (hover: none) {
+  .grid-card .grid-card-actions {
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+}

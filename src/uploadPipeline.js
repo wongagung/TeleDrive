@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const db = require('./db');
 const { uploadChunk, classifyCategory, getOrCreateTopic } = require('./telegram');
+const { generateVideoThumbnail } = require('./videoThumbnail');
 
 const CHUNK_SIZE = (parseInt(process.env.CHUNK_SIZE_MB, 10) || 1900) * 1024 * 1024;
 
@@ -15,6 +16,11 @@ const CHUNK_SIZE = (parseInt(process.env.CHUNK_SIZE_MB, 10) || 1900) * 1024 * 10
 async function sendFileToTelegram({ localPath, originalName, totalSize, mimeType, userId, folderId }) {
   const category = classifyCategory(originalName, mimeType);
   const threadId = await getOrCreateTopic(category);
+
+  // Generate thumbnail video KONKUREN sama proses upload ke Telegram (bukan
+  // berurutan) supaya gak nambah waktu tunggu user. Best-effort: kalau gagal
+  // (ffmpeg gak ada / video corrupt), tetap null, upload tetap lanjut normal.
+  const thumbnailPromise = category === 'video' ? generateVideoThumbnail(localPath) : Promise.resolve(null);
 
   const chunks = [];
   const tempChunkPaths = [];
@@ -50,11 +56,13 @@ async function sendFileToTelegram({ localPath, originalName, totalSize, mimeType
       }
     }
 
+    const thumbnail = await thumbnailPromise;
+
     const info = db
       .prepare(
-        'INSERT INTO files (user_id, folder_id, original_name, size, mime_type, chunks) VALUES (?, ?, ?, ?, ?, ?)'
+        'INSERT INTO files (user_id, folder_id, original_name, size, mime_type, chunks, thumbnail) VALUES (?, ?, ?, ?, ?, ?, ?)'
       )
-      .run(userId, folderId, originalName, totalSize, mimeType, JSON.stringify(chunks));
+      .run(userId, folderId, originalName, totalSize, mimeType, JSON.stringify(chunks), thumbnail);
 
     return { id: info.lastInsertRowid, name: originalName, size: totalSize, category };
   } catch (err) {

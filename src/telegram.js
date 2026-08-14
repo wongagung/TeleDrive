@@ -193,11 +193,66 @@ async function deleteMessage(messageId) {
   }
 }
 
+/**
+ * Kirim pesan teks ke chat manapun (dipakai buat DM notifikasi kuota,
+ * bukan ke grup). chatId di sini beda dari GROUP_ID -- ini chat_id personal
+ * user yang sudah menghubungkan akunnya lewat alur /start <kode>.
+ */
+async function sendMessage(chatId, text) {
+  const form = new URLSearchParams();
+  form.append('chat_id', chatId);
+  form.append('text', text);
+
+  const res = await fetch(`${BASE}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: form,
+  });
+  const data = await res.json();
+  if (!data.ok) {
+    throw new Error(`Telegram sendMessage gagal: ${data.description || JSON.stringify(data)}`);
+  }
+  return data.result;
+}
+
+/** Ambil update baru dari bot (long polling). Dipakai buat nangkep pesan
+ * /start <kode> yang user kirim ke DM bot pas proses hubungkan akun. */
+async function getUpdates(offset, timeoutSec) {
+  const params = new URLSearchParams();
+  if (offset !== undefined) params.append('offset', offset);
+  params.append('timeout', String(timeoutSec || 25));
+  params.append('allowed_updates', JSON.stringify(['message']));
+
+  const res = await fetch(`${BASE}/getUpdates?${params.toString()}`);
+  const data = await res.json();
+  if (!data.ok) {
+    throw new Error(`Telegram getUpdates gagal: ${data.description || JSON.stringify(data)}`);
+  }
+  return data.result; // array of Update
+}
+
+let cachedBotUsername = null;
+/** Ambil username bot (buat kasih tahu user "kirim pesan ke @NamaBot"), di-cache. */
+async function getBotUsername() {
+  if (cachedBotUsername) return cachedBotUsername;
+  try {
+    const res = await fetch(`${BASE}/getMe`);
+    const data = await res.json();
+    if (data.ok) cachedBotUsername = data.result.username;
+  } catch (err) {
+    console.warn('[getBotUsername] gagal ambil info bot:', err.message);
+  }
+  return cachedBotUsername;
+}
+
 module.exports = {
   uploadChunk,
   getLocalFilePath,
   deleteMessage,
   classifyCategory,
   getOrCreateTopic,
+  sendMessage,
+  getUpdates,
+  getBotUsername,
   CATEGORIES,
 };

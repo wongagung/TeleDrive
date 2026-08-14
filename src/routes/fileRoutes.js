@@ -7,7 +7,7 @@ const { getLocalFilePath, deleteMessage, classifyCategory } = require('../telegr
 const { sendFileToTelegram, CHUNK_SIZE } = require('../uploadPipeline');
 const { requireAuth } = require('../middleware/authMiddleware');
 const { uploadLimiter, blockLimiter } = require('../middleware/rateLimiters');
-const { getQuotaBytes, getUsedBytes, assertWithinQuota } = require('../quota');
+const { getQuotaBytes, getUsedBytes, assertWithinQuota, checkAndNotifyQuota } = require('../quota');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -363,6 +363,13 @@ router.post('/upload/:id/complete', uploadLimiter, async (req, res) => {
       folderId: session.folder_id,
     });
 
+    // Fire-and-forget -- jangan bikin response upload nunggu proses cek+kirim
+    // DM notifikasi kuota. Kalau gagal, sudah di-catch & di-log di dalam
+    // checkAndNotifyQuota sendiri, gak perlu ditangani lagi di sini.
+    checkAndNotifyQuota(req.user.id).catch((err) => {
+      console.warn('[checkAndNotifyQuota] error tak terduga:', err.message);
+    });
+
     res.json({ ok: true, ...result });
   } catch (err) {
     console.error('[upload/complete] error:', err);
@@ -487,6 +494,18 @@ router.get('/preview/:id', async (req, res) => {
     if (!res.headersSent) res.status(500).json({ error: 'Gagal mengambil file dari Telegram' });
     else res.end();
   }
+});
+
+// Thumbnail video (JPEG kecil hasil ekstrak frame saat upload) -- 404 kalau
+// belum ada (video lama sebelum fitur ini ada, atau ffmpeg gagal generate).
+// Frontend fallback ke ikon+badge kalau dapat 404 ini.
+router.get('/thumbnail/:id', (req, res) => {
+  const file = db.prepare('SELECT thumbnail FROM files WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+  if (!file || !file.thumbnail) return res.status(404).json({ error: 'Thumbnail tidak tersedia' });
+
+  res.setHeader('Content-Type', 'image/jpeg');
+  res.setHeader('Cache-Control', 'private, max-age=31536000, immutable'); // thumbnail gak pernah berubah utk id yang sama
+  res.end(file.thumbnail);
 });
 
 router.delete('/files/:id', async (req, res) => {

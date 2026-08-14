@@ -266,7 +266,10 @@ function renderGridView(data) {
     if (isImage) {
       thumbHtml = `<img src="${previewUrl(f.id)}" alt="${escapeHtml(f.original_name)}" loading="lazy" />`;
     } else if (isVideo) {
-      thumbHtml = `<span>${categoryIcon(f.category)}</span><div class="play-badge">▶</div>`;
+      // Coba tampilkan thumbnail frame asli (hasil ffmpeg saat upload).
+      // Kalau gagal load (belum ada / ffmpeg gak keinstall di server),
+      // onerror di bawah otomatis fallback ke ikon+badge kayak biasa.
+      thumbHtml = `<img src="${thumbnailUrl(f.id)}" alt="${escapeHtml(f.original_name)}" loading="lazy" /><div class="play-badge">▶</div>`;
     } else {
       thumbHtml = categoryIcon(f.category);
     }
@@ -285,8 +288,18 @@ function renderGridView(data) {
       <div class="grid-card-meta">${fmtSize(f.size)}</div>
     `;
 
-    const img = card.querySelector('img');
-    if (img) img.onerror = () => { card.querySelector('.grid-card-thumb').textContent = categoryIcon(f.category); };
+    const thumbImg = card.querySelector('.grid-card-thumb img');
+    if (thumbImg) {
+      thumbImg.onerror = () => {
+        if (isVideo) {
+          // Thumbnail gagal load -- buang <img>-nya, biarin play-badge, kasih ikon fallback
+          thumbImg.remove();
+          card.querySelector('.grid-card-thumb').insertAdjacentHTML('afterbegin', categoryIcon(f.category));
+        } else {
+          card.querySelector('.grid-card-thumb').textContent = categoryIcon(f.category);
+        }
+      };
+    }
 
     card.querySelector('[data-file-check]').onclick = (e) => {
       e.stopPropagation();
@@ -438,6 +451,10 @@ function previewUrl(id) {
   return `/api/drive/preview/${id}?token=${encodeURIComponent(getToken())}`;
 }
 
+function thumbnailUrl(id) {
+  return `/api/drive/thumbnail/${id}?token=${encodeURIComponent(getToken())}`;
+}
+
 function openPreview(id, name, mime) {
   previewTitle.textContent = name;
   previewModal.hidden = false;
@@ -576,6 +593,67 @@ async function confirmMove() {
   } else {
     alert((await res.json()).error);
   }
+}
+
+// ---------- Hubungkan Telegram (notifikasi kuota via DM) ----------
+
+const telegramModal = document.getElementById('telegramModal');
+const telegramModalBody = document.getElementById('telegramModalBody');
+document.getElementById('telegramModalClose').onclick = closeTelegramModal;
+telegramModal.onclick = (e) => { if (e.target === telegramModal) closeTelegramModal(); };
+
+document.getElementById('telegramLinkBtn').onclick = openTelegramModal;
+
+function closeTelegramModal() {
+  telegramModal.hidden = true;
+}
+
+async function openTelegramModal() {
+  telegramModal.hidden = false;
+  telegramModalBody.innerHTML = '<p class="loading">Memuat...</p>';
+
+  const res = await api('/api/auth/telegram/status');
+  if (!res) return;
+  const status = await res.json();
+
+  if (status.linked) {
+    telegramModalBody.innerHTML = `
+      <p class="tg-status-linked">✅ Akun Telegram kamu sudah terhubung.<br>
+      Kamu akan dapat notifikasi DM otomatis kalau kuota penyimpanan hampir penuh.</p>
+      <button id="tgUnlinkBtn" class="danger-btn tg-action-btn">Putuskan Koneksi</button>
+    `;
+    document.getElementById('tgUnlinkBtn').onclick = async () => {
+      if (!confirm('Putuskan koneksi Telegram? Kamu tidak akan dapat notifikasi kuota lagi.')) return;
+      const r = await api('/api/auth/telegram/link', { method: 'DELETE' });
+      if (r && r.ok) openTelegramModal(); // refresh tampilan
+    };
+  } else {
+    telegramModalBody.innerHTML = `
+      <p>Hubungkan akun Telegram kamu supaya dapat notifikasi DM otomatis kalau kuota penyimpanan hampir penuh.</p>
+      <button id="tgGenerateBtn" class="primary-btn tg-action-btn">Generate Kode</button>
+      <div id="tgCodeArea"></div>
+    `;
+    document.getElementById('tgGenerateBtn').onclick = generateTelegramCode;
+  }
+}
+
+async function generateTelegramCode() {
+  const res = await api('/api/auth/telegram/link-code', { method: 'POST' });
+  if (!res) return;
+  if (!res.ok) {
+    document.getElementById('tgCodeArea').innerHTML = `<p class="error">${escapeHtml((await res.json()).error)}</p>`;
+    return;
+  }
+  const data = await res.json();
+  const botInfo = data.bot_username
+    ? `<a href="https://t.me/${data.bot_username}" target="_blank" rel="noopener">@${escapeHtml(data.bot_username)}</a>`
+    : 'bot Telegram Drive kamu';
+
+  document.getElementById('tgCodeArea').innerHTML = `
+    <p class="tg-code-label">Kirim pesan ini ke ${botInfo} dalam ${data.expires_in_minutes} menit:</p>
+    <div class="tg-code-box">/start ${escapeHtml(data.code)}</div>
+    <p class="tg-code-hint">Setelah dikirim, bot akan otomatis balas konfirmasi. Buka modal ini lagi buat cek statusnya.</p>
+  `;
 }
 
 // ---------- Resumable upload ----------

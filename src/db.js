@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT NOT NULL,
   quota_bytes INTEGER NOT NULL DEFAULT 0, -- 0 = pakai DEFAULT_QUOTA_MB dari .env
   is_admin INTEGER NOT NULL DEFAULT 0,
+  telegram_chat_id INTEGER, -- diisi setelah user hubungkan akun Telegram-nya
+  quota_notified_pct INTEGER NOT NULL DEFAULT 0, -- threshold notifikasi kuota tertinggi yang sudah dikirim
   created_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -37,6 +39,7 @@ CREATE TABLE IF NOT EXISTS files (
   size INTEGER NOT NULL,
   mime_type TEXT,
   chunks TEXT NOT NULL, -- JSON array [{seq, tg_file_id, size}]
+  thumbnail BLOB, -- JPEG kecil hasil ekstrak frame video (NULL kalau bukan video / ffmpeg gagal)
   created_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -88,6 +91,17 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
 CREATE INDEX IF NOT EXISTS idx_refresh_user ON refresh_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_refresh_hash ON refresh_tokens(token_hash);
 
+-- Kode sekali-pakai buat menghubungkan akun web dengan chat Telegram user
+-- (dibutuhkan supaya bot boleh DM user itu -- Telegram tidak izinkan bot
+-- mulai chat duluan ke user yang belum pernah kontak bot itu sendiri).
+CREATE TABLE IF NOT EXISTS telegram_link_codes (
+  code TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TEXT DEFAULT (datetime('now')),
+  expires_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_link_codes_expires ON telegram_link_codes(expires_at);
+
 -- Index full-text buat pencarian nama file. External-content FTS5: data
 -- aslinya tetap di tabel files, FTS5 cuma nyimpen index tokennya supaya
 -- hemat storage & otomatis sinkron lewat trigger di bawah.
@@ -117,6 +131,17 @@ if (!userCols2.includes('quota_bytes')) {
 }
 if (!userCols2.includes('is_admin')) {
   db.exec('ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0');
+}
+if (!userCols2.includes('telegram_chat_id')) {
+  db.exec('ALTER TABLE users ADD COLUMN telegram_chat_id INTEGER');
+}
+if (!userCols2.includes('quota_notified_pct')) {
+  db.exec('ALTER TABLE users ADD COLUMN quota_notified_pct INTEGER NOT NULL DEFAULT 0');
+}
+
+const fileCols = db.prepare("PRAGMA table_info(files)").all().map((c) => c.name);
+if (!fileCols.includes('thumbnail')) {
+  db.exec('ALTER TABLE files ADD COLUMN thumbnail BLOB');
 }
 
 // User pertama yang pernah terdaftar otomatis jadi admin kalau belum ada

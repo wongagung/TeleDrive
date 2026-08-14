@@ -10,6 +10,8 @@ const {
   rotateRefreshToken,
   revokeRefreshToken,
 } = require('../tokenUtils');
+const { createLinkCode } = require('../telegramBot');
+const { getBotUsername } = require('../telegram');
 
 const router = express.Router();
 const USERNAME_RE = /^[a-zA-Z0-9._-]{3,32}$/;
@@ -96,6 +98,24 @@ router.post('/logout', requireAuth, (req, res) => {
 
 router.get('/me', requireAuth, (req, res) => {
   res.json({ id: req.user.id, username: req.user.username, is_admin: req.user.isAdmin });
+});
+
+// ---------- Hubungkan akun Telegram (buat notifikasi kuota DM) ----------
+
+router.get('/telegram/status', requireAuth, (req, res) => {
+  const user = db.prepare('SELECT telegram_chat_id FROM users WHERE id = ?').get(req.user.id);
+  res.json({ linked: !!(user && user.telegram_chat_id) });
+});
+
+router.post('/telegram/link-code', requireAuth, authLimiter, async (req, res) => {
+  const { code, expiresInMinutes } = createLinkCode(req.user.id);
+  const botUsername = await getBotUsername();
+  res.json({ code, expires_in_minutes: expiresInMinutes, bot_username: botUsername });
+});
+
+router.delete('/telegram/link', requireAuth, (req, res) => {
+  db.prepare('UPDATE users SET telegram_chat_id = NULL, quota_notified_pct = 0 WHERE id = ?').run(req.user.id);
+  res.json({ ok: true });
 });
 
 module.exports = router;

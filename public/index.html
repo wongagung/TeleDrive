@@ -16,6 +16,7 @@
       </div>
       <span id="whoami"></span>
       <a id="adminLink" href="admin.html" class="admin-link" hidden>⚙ Admin</a>
+      <button id="telegramLinkBtn" class="admin-link" title="Hubungkan Telegram buat notifikasi kuota">🔗 Telegram</button>
       <button id="logoutBtn">Keluar</button>
     </div>
   </header>
@@ -94,6 +95,17 @@
       <div class="modal-footer">
         <button id="moveHereBtn" class="primary-btn">Pindahkan ke sini</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Modal Hubungkan Telegram (buat notifikasi kuota via DM) -->
+  <div id="telegramModal" class="modal-overlay" hidden>
+    <div class="modal-box modal-move">
+      <div class="modal-header">
+        <span>🔗 Hubungkan Telegram</span>
+        <button id="telegramModalClose" class="modal-close">✕</button>
+      </div>
+      <div id="telegramModalBody" class="telegram-link-body"></div>
     </div>
   </div>
 

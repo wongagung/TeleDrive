@@ -13,6 +13,8 @@ cleanupExpiredTokens(); // buang baris token basi di startup, sebelum nerima tra
 const authRoutes = require('./routes/authRoutes');
 const fileRoutes = require('./routes/fileRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const { startPolling } = require('./telegramBot');
+const { checkFfmpegAvailable } = require('./videoThumbnail');
 
 const app = express();
 app.disable('x-powered-by'); // jangan bocorkan "Express" ke response header
@@ -70,3 +72,12 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`[telegram-drive] jalan di http://localhost:${PORT}`);
 });
+
+// Fire-and-forget: mulai polling Telegram (buat proses hubung-akun /start
+// <kode>) dan cek ketersediaan ffmpeg (buat thumbnail video). Keduanya
+// TIDAK boleh mem-block/gagalkan startup server kalau ada masalah -- fitur
+// opsional, bukan inti aplikasi.
+if (process.env.BOT_TOKEN && process.env.GROUP_ID) {
+  startPolling().catch((err) => console.warn('[telegramBot] polling berhenti dengan error:', err.message));
+}
+checkFfmpegAvailable();

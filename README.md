@@ -330,32 +330,59 @@ browser / access log server / `Referer` header kalau halaman pindah saat media m
 loading. Risikonya dibatasi karena access token umurnya pendek (`ACCESS_TOKEN_EXPIRES_IN`,
 default 15 menit) -- tapi ini tetap trade-off yang sadar dilakukan, bukan kebetulan.
 
+## 12. Thumbnail Video + Notifikasi Kuota via Telegram DM
+
+**Thumbnail video**: saat upload video selesai, server otomatis ekstrak satu frame (detik ke-1)
+pakai `ffmpeg`, disimpan sebagai JPEG kecil langsung di database, ditampilkan di grid view
+menggantikan ikon generik. Proses ekstraksi jalan **konkuren** sama upload ke Telegram (gak
+nambah waktu tunggu). Kalau `ffmpeg` gak keinstall di VM, thumbnail otomatis fallback ke
+ikon+badge play seperti biasa -- upload tetap sukses, cuma thumbnailnya kosong.
+
+```bash
+sudo apt install ffmpeg   # kalau belum ada; cek log server saat startup untuk konfirmasi
+```
+
+**Notifikasi kuota via DM Telegram**: karena bot Telegram gak boleh mulai chat duluan ke user
+random (anti-spam by design Telegram), ada alur "hubungkan akun" dulu:
+
+1. User klik "🔗 Telegram" di header drive → generate kode sekali-pakai (berlaku 10 menit)
+2. User kirim `/start <kode>` ke bot lewat Telegram
+3. Server (via long-polling `getUpdates`, jalan otomatis di background) nangkep pesan itu,
+   cocokkan kodenya, simpan `chat_id` user itu, balas konfirmasi
+
+Setelah terhubung, tiap kali usage user melewati ambang batas (`QUOTA_WARN_THRESHOLDS`,
+default 80% dan 95%), bot otomatis DM sekali per ambang batas (gak spam tiap upload). Kalau
+user hapus file dan usage turun lagi, status notifikasi ke-reset otomatis -- bisa notif lagi
+di masa depan kalau naik lagi.
+
 ## Struktur Project
 
 
 ```
 telegram-drive/
 ├── src/
-│   ├── server.js              # entry point Express (helmet, CORS, JWT secret check)
+│   ├── server.js              # entry point Express (helmet, CORS, JWT secret check, start polling)
 │   ├── config.js               # validasi JWT_SECRET saat startup
-│   ├── db.js                    # schema (users+is_admin, folders, files+FTS5, topics, quota, tokens)
-│   ├── telegram.js              # wrapper Local Bot API (upload/download/delete/topic kategori)
+│   ├── db.js                    # schema (users+admin+telegram, folders, files+FTS5+thumbnail, dst)
+│   ├── telegram.js              # wrapper Local Bot API (upload/download/delete/topic/DM/polling)
+│   ├── telegramBot.js           # long-polling loop + proses /start <kode> buat link akun
+│   ├── videoThumbnail.js        # ekstrak frame video pakai ffmpeg
 │   ├── tokenUtils.js            # access token (JWT+jti) + refresh token (opaque, hash, rotate)
-│   ├── quota.js                 # hitung & cek kuota penyimpanan per user
-│   ├── uploadPipeline.js        # logic bersama: chunking ke Telegram + simpan metadata
+│   ├── quota.js                 # hitung/cek kuota + trigger notifikasi DM kalau hampir penuh
+│   ├── uploadPipeline.js        # logic bersama: chunking ke Telegram + thumbnail + simpan metadata
 │   ├── middleware/
 │   │   ├── authMiddleware.js    # verifikasi JWT (header ATAU ?token=) + revoked_tokens + user masih ada
 │   │   ├── adminMiddleware.js   # guard requireAdmin
 │   │   └── rateLimiters.js      # rate limit login/register & upload
 │   └── routes/
-│       ├── authRoutes.js        # register/login/refresh/logout/me
+│       ├── authRoutes.js        # register/login/refresh/logout/me/telegram-link
 │       ├── adminRoutes.js       # list user, set kuota, promote/demote, hapus user
 │       └── fileRoutes.js        # folder CRUD+rename/move, resumable upload, download, preview
-│                                 # (dengan Range request), bulk ops, search
+│                                 # (dengan Range request), thumbnail, bulk ops, search
 ├── public/
 │   ├── auth.js                  # shared: token storage, auto-refresh on 401, logout
 │   ├── login.html / login.js
-│   ├── index.html / app.js      # drive: list/grid toggle, quota bar, search, preview (img/pdf/video/audio)
+│   ├── index.html / app.js      # drive: list/grid toggle, quota bar, search, preview, link Telegram
 │   └── admin.html / admin.js    # panel admin
 ├── scripts/
 │   ├── set-quota.js             # CLI: set kuota custom per user
@@ -375,6 +402,9 @@ telegram-drive/
 | POST   | /api/auth/refresh                      | -     | `{refresh_token}` -> access+refresh token baru   |
 | POST   | /api/auth/logout                       | v     | Cabut access token (+ refresh token kalau dikirim) |
 | GET    | /api/auth/me                           | v     | `{id, username, is_admin}`                       |
+| GET    | /api/auth/telegram/status              | v     | `{linked}`                                       |
+| POST   | /api/auth/telegram/link-code           | v     | Generate kode `/start` sekali-pakai (10 menit)   |
+| DELETE | /api/auth/telegram/link                | v     | Putuskan koneksi Telegram                        |
 | GET    | /api/drive/list?folder_id=             | v     | Isi folder + info quota + kategori per file      |
 | GET    | /api/drive/search?q=                   | v     | Full-text search nama file lintas folder         |
 | GET    | /api/drive/quota                       | v     | `{used, quota}` dalam bytes                      |
@@ -385,10 +415,11 @@ telegram-drive/
 | POST   | /api/drive/upload/init                  | v     | `{filename, size, mime_type, folder_id}`, cek quota |
 | PUT    | /api/drive/upload/:id/block/:index      | v     | Body biner satu block                            |
 | GET    | /api/drive/upload/:id/status            | v     | Cek block yang sudah diterima (buat resume)      |
-| POST   | /api/drive/upload/:id/complete          | v     | Gabung block + kirim ke Telegram                 |
+| POST   | /api/drive/upload/:id/complete          | v     | Gabung block + kirim ke Telegram + trigger notif quota |
 | DELETE | /api/drive/upload/:id                   | v     | Batalkan sesi upload yang belum selesai          |
 | GET    | /api/drive/download/:id                 | v (header/query) | Download (attachment), support Range     |
 | GET    | /api/drive/preview/:id                  | v (header/query) | Preview inline (image/pdf/video/audio), support Range |
+| GET    | /api/drive/thumbnail/:id                | v (header/query) | JPEG thumbnail video (404 kalau belum ada) |
 | DELETE | /api/drive/files/:id                    | v     | Hapus satu file (+ coba hapus di grup)           |
 | POST   | /api/drive/bulk-delete                  | v     | `{file_ids[], folder_ids[]}` -- hapus banyak sekaligus |
 | POST   | /api/drive/bulk-move                    | v     | `{file_ids[], folder_ids[], target_folder_id}` -- pindah banyak sekaligus |
@@ -402,5 +433,7 @@ telegram-drive/
 
 - Kuota per-folder atau per-tipe-file (saat ini kuota flat per user)
 - Audit log aktivitas admin (siapa hapus/ubah apa, kapan)
-- Notifikasi email/Telegram DM ke user kalau kuotanya hampir penuh
-- Thumbnail video (grid view cuma nampilin ikon+badge play, bukan frame asli dari videonya)
+- Notifikasi email (SMTP tidak di-setup; notifikasi kuota cuma lewat Telegram DM)
+- Thumbnail buat gambar besar (grid view pakai file aslinya langsung sebagai thumbnail,
+  belum di-resize di server -- cukup untuk pemakaian personal, tapi boros bandwidth kalau
+  foto-fotonya beresolusi sangat tinggi)

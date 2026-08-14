@@ -1,0 +1,66 @@
+/* TeleDrive - Grid/List toggle visual fix
+   Loaded after style.css so the active view is always clearly visible. */
+
+.view-toggle {
+  display: inline-flex !important;
+  align-items: stretch !important;
+  background: var(--surface, #1c1e26) !important;
+  border: 1px solid var(--border, #2a2d38) !important;
+  border-radius: var(--radius-sm, 8px) !important;
+  overflow: hidden !important;
+}
+
+.view-toggle button,
+.view-toggle button#viewListBtn,
+.view-toggle button#viewGridBtn {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 40px !important;
+  height: 36px !important;
+  padding: 0 12px !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-right: 1px solid var(--border, #2a2d38) !important;
+  border-radius: 0 !important;
+  background: var(--surface, #1c1e26) !important;
+  color: var(--text-muted, #8b8fa3) !important;
+  box-shadow: none !important;
+  cursor: pointer !important;
+  font-size: 15px !important;
+  line-height: 1 !important;
+  transition: background .15s ease, color .15s ease !important;
+}
+
+.view-toggle button:last-child {
+  border-right: 0 !important;
+}
+
+.view-toggle button:hover {
+  background: var(--surface-hover, #23252f) !important;
+  color: var(--text, #ecedf0) !important;
+}
+
+.view-toggle button.active,
+.view-toggle button#viewListBtn.active,
+.view-toggle button#viewGridBtn.active {
+  background: var(--accent, #e3a008) !important;
+  color: #1a1508 !important;
+  font-weight: 700 !important;
+  box-shadow: none !important;
+}
+
+.view-toggle button.active:hover,
+.view-toggle button#viewListBtn.active:hover,
+.view-toggle button#viewGridBtn.active:hover {
+  background: var(--accent-hover, #f2b32c) !important;
+  color: #1a1508 !important;
+}
+
+/* Jangan biarkan rule global button membuat tombol toggle hitam */
+.view-toggle button:focus-visible {
+  outline: 2px solid var(--accent, #e3a008) !important;
+  outline-offset: -2px !important;
+}

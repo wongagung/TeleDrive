@@ -1,24 +1,69 @@
 let mode = 'login';
+let turnstileToken = '';
+
 const tabLogin = document.getElementById('tabLogin');
 const tabRegister = document.getElementById('tabRegister');
 const submitBtn = document.getElementById('submitBtn');
 const msg = document.getElementById('msg');
+const authForm = document.getElementById('authForm');
 
-tabLogin.onclick = () => { mode = 'login'; tabLogin.classList.add('active'); tabRegister.classList.remove('active'); submitBtn.textContent = 'Masuk'; };
-tabRegister.onclick = () => { mode = 'register'; tabRegister.classList.add('active'); tabLogin.classList.remove('active'); submitBtn.textContent = 'Daftar'; };
+window.onTurnstileSuccess = (token) => {
+  turnstileToken = token;
+  msg.textContent = '';
+};
 
-document.getElementById('authForm').onsubmit = async (e) => {
+window.onTurnstileExpired = () => {
+  turnstileToken = '';
+};
+
+window.onTurnstileError = () => {
+  turnstileToken = '';
+  msg.textContent = 'CAPTCHA gagal dimuat. Periksa koneksi lalu coba lagi.';
+};
+
+function setMode(nextMode) {
+  mode = nextMode;
+  tabLogin.classList.toggle('active', mode === 'login');
+  tabRegister.classList.toggle('active', mode === 'register');
+  submitBtn.textContent = mode === 'login' ? 'Masuk' : 'Daftar';
+  document.getElementById('password').autocomplete =
+    mode === 'login' ? 'current-password' : 'new-password';
+  msg.textContent = '';
+  turnstileToken = '';
+
+  if (window.turnstile) {
+    try { window.turnstile.reset(); } catch (_) {}
+  }
+}
+
+tabLogin.onclick = () => setMode('login');
+tabRegister.onclick = () => setMode('register');
+
+authForm.onsubmit = async (e) => {
   e.preventDefault();
   msg.textContent = '';
+
   const username = document.getElementById('username').value.trim();
   const password = document.getElementById('password').value;
+
+  if (!turnstileToken) {
+    msg.textContent = 'Silakan selesaikan verifikasi CAPTCHA terlebih dahulu.';
+    return;
+  }
+
+  submitBtn.disabled = true;
 
   try {
     const res = await fetch(`/api/auth/${mode}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({
+        username,
+        password,
+        turnstile_token: turnstileToken,
+      }),
     });
+
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Gagal');
 
@@ -28,5 +73,11 @@ document.getElementById('authForm').onsubmit = async (e) => {
     window.location.href = '/';
   } catch (err) {
     msg.textContent = err.message;
+    turnstileToken = '';
+    if (window.turnstile) {
+      try { window.turnstile.reset(); } catch (_) {}
+    }
+  } finally {
+    submitBtn.disabled = false;
   }
 };

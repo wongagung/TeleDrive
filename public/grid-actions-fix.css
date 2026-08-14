@@ -1,0 +1,130 @@
+
+/* ============================================================
+   TeleDrive - GRID ACTIONS FINAL FIX
+   Hover target = SELURUH CARD.
+   Action bar = selalu berada DI DALAM card bagian bawah.
+   ============================================================ */
+
+.grid-card {
+  position: relative !important;
+  box-sizing: border-box !important;
+  overflow: visible !important;
+  padding-bottom: 52px !important;
+}
+
+/* Jangan gunakan display:none agar transisi tidak patah. */
+.grid-card .grid-card-actions {
+  position: absolute !important;
+  left: 8px !important;
+  right: 8px !important;
+  top: auto !important;
+  bottom: 8px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: stretch !important;
+  gap: 5px !important;
+
+  width: auto !important;
+  height: 34px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transform: translateY(4px) !important;
+
+  z-index: 20 !important;
+  transition:
+    opacity .14s ease,
+    transform .14s ease,
+    visibility .14s ease !important;
+}
+
+/* Mouse berada DI MANA SAJA dalam card -> action muncul. */
+.grid-card:hover .grid-card-actions,
+.grid-card:focus-within .grid-card-actions {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  transform: translateY(0) !important;
+}
+
+/* Lima tombol atau lebih tetap muat dan tidak terpotong. */
+.grid-card .grid-card-actions button {
+  flex: 1 1 0 !important;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  height: 34px !important;
+  min-height: 34px !important;
+  max-height: 34px !important;
+
+  box-sizing: border-box !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  background: var(--surface) !important;
+  color: var(--text) !important;
+
+  font-size: 12px !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+.grid-card .grid-card-actions button:hover,
+.grid-card .grid-card-actions button:focus-visible {
+  background: var(--surface-hover) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+  outline: none !important;
+}
+
+.grid-card .grid-card-actions button[data-del-file]:hover,
+.grid-card .grid-card-actions button[data-del-folder]:hover {
+  background: var(--danger-dim) !important;
+  border-color: var(--danger) !important;
+  color: var(--danger) !important;
+}
+
+/* Checkbox tidak tertutup oleh action layer. */
+.grid-card .grid-card-check {
+  position: absolute !important;
+  top: 10px !important;
+  right: 10px !important;
+  z-index: 30 !important;
+}
+
+/* Card tetap rapi pada grid kecil. */
+@media (max-width: 640px) {
+  .grid-card .grid-card-actions {
+    left: 6px !important;
+    right: 6px !important;
+    bottom: 6px !important;
+    gap: 3px !important;
+  }
+
+  .grid-card .grid-card-actions button {
+    height: 32px !important;
+    min-height: 32px !important;
+    font-size: 11px !important;
+  }
+}
+
+/* Touch device: tidak punya hover, jadi action tetap tersedia. */
+@media (hover: none), (pointer: coarse) {
+  .grid-card .grid-card-actions {
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transform: none !important;
+  }
+}

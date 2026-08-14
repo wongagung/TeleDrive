@@ -387,19 +387,20 @@ h1, h2, h3 { letter-spacing: -0.01em; font-weight: 700; }
 /* Tombol tersembunyi secara visual; card-lah yang menjadi trigger. */
 .grid-card .grid-card-actions {
   position: absolute !important;
-  left: 10px !important;
-  right: 10px !important;
-  bottom: 10px !important;
+  left: 6px !important;
+  right: 6px !important;
+  bottom: 6px !important;
   top: auto !important;
 
   width: auto !important;
   height: 34px !important;
   min-height: 34px !important;
 
-  display: flex !important;
+  display: grid !important;
+  grid-auto-flow: column !important;
+  grid-auto-columns: minmax(0, 1fr) !important;
   align-items: center !important;
-  justify-content: flex-end !important;
-  gap: 5px !important;
+  gap: 4px !important;
 
   margin: 0 !important;
   padding: 0 !important;
@@ -433,10 +434,9 @@ h1, h2, h3 { letter-spacing: -0.01em; font-weight: 700; }
 /* Tombol tetap memiliki ukuran yang seragam. */
 .grid-card .grid-card-actions button {
   position: static !important;
-  flex: 0 0 32px !important;
-  width: 32px !important;
-  min-width: 32px !important;
-  max-width: 32px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
   height: 32px !important;
   min-height: 32px !important;
   max-height: 32px !important;

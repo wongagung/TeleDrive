@@ -1,0 +1,94 @@
+
+/* TeleDrive — Grid action button fix */
+.grid-card-actions {
+  position: absolute;
+  top: 9px;
+  left: 9px;
+  display: flex !important;
+  align-items: center;
+  gap: 5px;
+  z-index: 5;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity .15s ease, transform .15s ease;
+}
+
+.grid-card:hover .grid-card-actions,
+.grid-card:focus-within .grid-card-actions {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.grid-card-actions button {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 30px !important;
+  height: 30px !important;
+  min-width: 30px;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  background: var(--surface-raised, var(--surface)) !important;
+  color: var(--text) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,.22);
+  cursor: pointer;
+  font-size: 13px !important;
+  line-height: 1;
+  transition: background .15s ease, border-color .15s ease,
+              color .15s ease, transform .15s ease;
+}
+
+.grid-card-actions button:hover {
+  background: var(--surface-hover) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+  transform: translateY(-1px);
+}
+
+.grid-card-actions button:active {
+  transform: translateY(0);
+}
+
+.grid-card-actions button[data-del-file]:hover,
+.grid-card-actions button[data-del-folder]:hover {
+  color: var(--danger) !important;
+  border-color: var(--danger) !important;
+  background: var(--danger-dim) !important;
+}
+
+/* Keep the checkbox visually above the card content. */
+.grid-card-check {
+  z-index: 8 !important;
+}
+
+/* On touch devices there is no hover; keep actions visible. */
+@media (hover: none) {
+  .grid-card-actions {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Fix the List/Grid switch itself so the selected Grid state is never black. */
+.view-toggle {
+  background: var(--surface) !important;
+}
+
+.view-toggle button {
+  background: var(--surface) !important;
+  color: var(--text-muted) !important;
+}
+
+.view-toggle button:hover:not(.active) {
+  background: var(--surface-hover) !important;
+  color: var(--text) !important;
+}
+
+.view-toggle button.active {
+  background: var(--accent-dim) !important;
+  color: var(--accent) !important;
+  box-shadow: inset 0 0 0 1px var(--accent);
+}

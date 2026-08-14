@@ -362,3 +362,139 @@ h1, h2, h3 { letter-spacing: -0.01em; font-weight: 700; }
 }
 
 .row-actions button { vertical-align: middle; }
+
+/* ============================================================
+   GRID ACTIONS — REVEAL SAAT MOUSE MASUK KE SELURUH ITEM
+   ------------------------------------------------------------
+   Tombol aksi TIDAK menjadi area hover tersendiri.
+   Seluruh .grid-card adalah hover target.
+
+   Hasil:
+   - Mouse diarahkan ke bagian mana pun dari card -> tombol muncul.
+   - Mouse keluar dari card -> tombol hilang.
+   - Tombol tetap berada presisi di bagian bawah card.
+   - Checkbox tetap di atas dan tidak ikut memicu aksi.
+   ============================================================ */
+
+.grid-card {
+  position: relative !important;
+  overflow: hidden !important;
+
+  /* Sisakan ruang tetap agar tombol tidak menutupi nama/ukuran. */
+  padding-bottom: 52px !important;
+}
+
+/* Tombol tersembunyi secara visual; card-lah yang menjadi trigger. */
+.grid-card .grid-card-actions {
+  position: absolute !important;
+  left: 10px !important;
+  right: 10px !important;
+  bottom: 10px !important;
+  top: auto !important;
+
+  width: auto !important;
+  height: 34px !important;
+  min-height: 34px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 5px !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transform: translateY(5px) !important;
+
+  z-index: 7 !important;
+
+  transition:
+    opacity 150ms ease,
+    visibility 150ms ease,
+    transform 150ms ease !important;
+}
+
+/*
+ * INI TRIGGER UTAMANYA:
+ * hover di MANA SAJA dalam card akan memunculkan action.
+ * Bukan hanya ketika mouse berada di area tombol.
+ */
+.grid-card:hover .grid-card-actions,
+.grid-card:focus-within .grid-card-actions {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  transform: translateY(0) !important;
+}
+
+/* Tombol tetap memiliki ukuran yang seragam. */
+.grid-card .grid-card-actions button {
+  position: static !important;
+  flex: 0 0 32px !important;
+  width: 32px !important;
+  min-width: 32px !important;
+  max-width: 32px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  max-height: 32px !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  border: 1px solid var(--border) !important;
+  border-radius: 7px !important;
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  box-shadow: var(--shadow-soft) !important;
+
+  line-height: 1 !important;
+  cursor: pointer !important;
+  pointer-events: auto !important;
+}
+
+.grid-card .grid-card-actions button:hover,
+.grid-card .grid-card-actions button:focus-visible {
+  background: var(--surface-hover) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+  outline: none !important;
+}
+
+.grid-card .grid-card-actions button[data-del-file]:hover,
+.grid-card .grid-card-actions button[data-del-folder]:hover,
+.grid-card .grid-card-actions .danger:hover {
+  background: var(--danger-dim) !important;
+  border-color: var(--danger) !important;
+  color: var(--danger) !important;
+}
+
+/* Checkbox selalu berada di atas action layer. */
+.grid-card .grid-card-check {
+  position: absolute !important;
+  top: 10px !important;
+  right: 10px !important;
+  z-index: 10 !important;
+}
+
+/*
+ * Mouse/trackpad:
+ * tombol hanya muncul ketika pointer berada di card.
+ *
+ * Touch:
+ * tidak ada hover, jadi tombol tetap tersedia.
+ */
+@media (hover: none), (pointer: coarse) {
+  .grid-card .grid-card-actions {
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transform: none !important;
+  }
+}

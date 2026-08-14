@@ -1,17 +1,27 @@
-
 /*
- * TeleDrive Grid Actions — bottom placement
- * Put the action buttons exactly in the empty bottom area of each grid card.
- * Checkbox remains at the top-right and is never covered.
+ * TeleDrive Grid Actions — precise bottom hover zone
+ *
+ * Behavior:
+ * - Checkbox stays at the top-right.
+ * - The bottom action area is reserved on every card.
+ * - Action buttons are hidden by default.
+ * - Moving the mouse into ONLY the bottom action zone reveals the buttons.
+ * - The hover zone is the full-width bottom strip, so the reveal is stable
+ *   and does not depend on aiming at a tiny button.
+ * - Touch devices keep the buttons visible because there is no reliable hover.
  */
 
 .grid-card {
   position: relative !important;
-  overflow: hidden;
-  padding-bottom: 52px !important;
+  overflow: hidden !important;
+  padding-bottom: 50px !important;
 }
 
-/* The action row belongs to the card footer, not the top overlay. */
+/*
+ * This element is deliberately kept as the hover target even while invisible.
+ * opacity: 0 does not remove it from hit-testing, so the bottom strip remains
+ * an exact and predictable mouse target.
+ */
 .grid-card .grid-card-actions {
   position: absolute !important;
   left: 0 !important;
@@ -19,28 +29,45 @@
   bottom: 0 !important;
   top: auto !important;
 
+  box-sizing: border-box !important;
   width: 100% !important;
-  height: 42px !important;
-  min-height: 42px !important;
+  height: 44px !important;
+  min-height: 44px !important;
   margin: 0 !important;
-  padding: 5px 8px !important;
+  padding: 6px 8px !important;
 
   display: flex !important;
   align-items: center !important;
   justify-content: flex-end !important;
-  gap: 5px !important;
+  gap: 6px !important;
 
-  border-top: 1px solid var(--border) !important;
-  border-radius: 0 !important;
-  background: var(--surface-raised, var(--surface)) !important;
-
-  opacity: 1 !important;
+  /* Invisible but still hoverable: this is the exact reveal zone. */
+  opacity: 0 !important;
   visibility: visible !important;
-  transform: none !important;
+  pointer-events: auto !important;
+  transform: translateY(4px) !important;
+
+  border-top: 1px solid transparent !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+
   z-index: 6 !important;
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease,
+    background-color 140ms ease,
+    border-color 140ms ease !important;
 }
 
-/* Buttons are compact and stay inside the red-marked footer area. */
+/* Reveal ONLY when the pointer is inside the bottom strip. */
+.grid-card .grid-card-actions:hover,
+.grid-card .grid-card-actions:focus-within {
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+  border-top-color: var(--border) !important;
+  background: var(--surface-raised, var(--surface)) !important;
+}
+
 .grid-card .grid-card-actions button {
   position: static !important;
   flex: 0 0 30px !important;
@@ -51,6 +78,7 @@
   min-height: 30px !important;
   max-height: 30px !important;
 
+  box-sizing: border-box !important;
   margin: 0 !important;
   padding: 0 !important;
 
@@ -64,11 +92,15 @@
   color: var(--text) !important;
   box-shadow: none !important;
   line-height: 1 !important;
-  cursor: pointer;
+  cursor: pointer !important;
+
+  /* Buttons must not create their own hover/reveal zone. */
+  pointer-events: auto !important;
 }
 
-.grid-card .grid-card-actions button:hover {
-  background: var(--surface-hover) !important;
+.grid-card .grid-card-actions button:hover,
+.grid-card .grid-card-actions button:focus-visible {
+  background: var(--surface-hover, var(--surface-raised, var(--surface))) !important;
   border-color: var(--accent) !important;
   color: var(--accent) !important;
 }
@@ -77,30 +109,32 @@
   transform: translateY(1px);
 }
 
-/* Delete actions retain a clear danger state. */
 .grid-card .grid-card-actions button[data-del-file]:hover,
 .grid-card .grid-card-actions button[data-del-folder]:hover,
 .grid-card .grid-card-actions .danger:hover {
-  background: var(--danger-dim, rgba(239,68,68,.10)) !important;
+  background: var(--danger-dim, rgba(239, 68, 68, .10)) !important;
   border-color: var(--danger, #ef4444) !important;
   color: var(--danger, #ef4444) !important;
 }
 
-/* Checkbox stays in its own top corner. */
+/* Checkbox always stays above the action strip. */
 .grid-card .grid-card-check,
 .grid-card input[type="checkbox"] {
+  position: relative !important;
   z-index: 10 !important;
 }
 
-/* Prevent the filename/details area from entering the footer. */
 .grid-card > *:not(.grid-card-actions):not(.grid-card-check) {
   max-width: 100%;
 }
 
-/* Mobile/touch: footer buttons remain visible. */
-@media (hover: none) {
+/* Touch / pen devices: no hover exists, so keep actions usable. */
+@media (hover: none), (pointer: coarse) {
   .grid-card .grid-card-actions {
     opacity: 1 !important;
     visibility: visible !important;
+    transform: none !important;
+    border-top-color: var(--border) !important;
+    background: var(--surface-raised, var(--surface)) !important;
   }
 }

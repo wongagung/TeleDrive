@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="grid-toggle-fix.css" />
 <link rel="stylesheet" href="grid-actions-fix.css" />
 <link rel="stylesheet" href="header-search.css" />
+<link rel="stylesheet" href="unified-ui.css" />
 <script src="theme-layout.js" defer></script>
 </head>
 <body>
@@ -41,7 +42,13 @@
 
   <main class="drive-wrap">
     <div class="toolbar">
+      <div class="folder-nav" aria-label="Navigasi folder">
+        <button id="folderBackBtn" class="folder-nav-btn" type="button" title="Folder sebelumnya" aria-label="Folder sebelumnya">←</button>
+        <button id="folderForwardBtn" class="folder-nav-btn" type="button" title="Folder berikutnya" aria-label="Folder berikutnya">→</button>
+      </div>
+
       <nav id="breadcrumb" class="breadcrumb"></nav>
+
       <div class="actions">
         <div class="view-toggle">
           <button id="viewListBtn" title="Tampilan list">☰</button>
@@ -114,6 +121,6 @@
 <script src="navigation-columns.js"></script>
 <script src="navigation-fix.js"></script>
 <script src="column-resize.js"></script>
-<script src="table-name-scroll.js"></script>
+<script src="unified-ui.js"></script>
 </body>
 </html>

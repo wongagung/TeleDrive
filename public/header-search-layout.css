@@ -1,199 +1,151 @@
-/* TeleDrive - header + table layout fix
- *
- * IMPORTANT:
- * - Search bar stays in the top header.
- * - Table columns remain resizable by the existing column-resizer.
- * - Long filenames are NOT truncated and do NOT get a scrollbar.
- * - When the Name column becomes narrower, the filename wraps naturally.
+/* TeleDrive — clean table layout
+ * One table grid for header + rows. No filename scrollbar, no ellipsis.
  */
 
-/* ===== HEADER / SEARCH ===== */
-.topbar {
-  position: sticky;
-  top: 0;
-  z-index: 50;
+#mainTable.drive-table,
+#searchResults .drive-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  border-spacing: 0;
 }
 
-.toolbar {
-  display: flex !important;
-  align-items: center !important;
-  gap: 12px !important;
+#mainTable.drive-table th,
+#mainTable.drive-table td,
+#searchResults .drive-table th,
+#searchResults .drive-table td {
+  box-sizing: border-box;
+  vertical-align: middle;
+  min-width: 0;
 }
 
-.toolbar .search-box {
-  position: fixed !important;
-  top: 13px !important;
-  left: 50% !important;
-  transform: translateX(-50%) !important;
-  width: min(360px, 34vw) !important;
-  max-width: 360px !important;
-  z-index: 60 !important;
-  margin: 0 !important;
-  flex: none !important;
-}
+/* Main table columns: Name / Size / Date / Actions */
+#mainTable.drive-table th:nth-child(1),
+#mainTable.drive-table td:nth-child(1) { width: 44%; }
+#mainTable.drive-table th:nth-child(2),
+#mainTable.drive-table td:nth-child(2) { width: 14%; }
+#mainTable.drive-table th:nth-child(3),
+#mainTable.drive-table td:nth-child(3) { width: 16%; }
+#mainTable.drive-table th:nth-child(4),
+#mainTable.drive-table td:nth-child(4) { width: 26%; }
 
-.toolbar .search-box #searchInput {
-  width: 100% !important;
-  height: 40px !important;
-  box-sizing: border-box !important;
-}
-
-.toolbar > .breadcrumb {
-  flex: 1 1 auto !important;
-  min-width: 0 !important;
-}
-
-.toolbar > .actions {
-  flex: 0 0 auto !important;
-}
-
-/* ===== TABLE ===== */
-.table-scroll {
-  width: 100% !important;
-  max-width: 100% !important;
-  overflow-x: auto !important;
-  overflow-y: visible !important;
-}
-
-.drive-table {
-  width: 100% !important;
-  min-width: 900px !important;
-  table-layout: fixed !important;
-  border-collapse: separate !important;
-  border-spacing: 0 !important;
-}
-
-.drive-table th,
-.drive-table td {
-  box-sizing: border-box !important;
-  vertical-align: middle !important;
-}
-
-/* A TD must stay a real table-cell. Do not use display:flex here. */
-.drive-table td.name-cell,
-.drive-table th:first-child {
+/* The filename cell is a normal table cell — never flex, never scroll. */
+#mainTable .name-cell,
+#searchResults .name-cell {
   display: table-cell !important;
-}
-
-.drive-table th {
-  height: 42px !important;
-  padding: 0 10px !important;
-}
-
-/* Let row height grow when a filename wraps. */
-.drive-table td {
-  min-height: 48px !important;
-  height: auto !important;
-  padding: 9px 10px !important;
-}
-
-/*
- * DO NOT set fixed percentages for columns here.
- * The existing column-resizer is responsible for widths.
- */
-
-/* Size/date/action stay inside their own cells. */
-.drive-table td:nth-child(2),
-.drive-table td:nth-child(3) {
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-}
-
-.drive-table td.row-actions,
-.drive-table th:nth-child(4) {
-  white-space: nowrap !important;
-  overflow: visible !important;
-  text-align: right !important;
-}
-
-/* ===== NAME COLUMN ===== */
-.drive-table td.name-cell {
-  min-width: 0 !important;
-  max-width: none !important;
-  overflow: visible !important;
+  width: auto;
+  max-width: none;
+  min-width: 0;
   white-space: normal !important;
-  overflow-wrap: anywhere !important;
-  word-break: break-word !important;
-}
-
-.drive-table td.name-cell .row-check {
-  display: inline-block !important;
-  vertical-align: top !important;
-  margin-right: 7px !important;
-  margin-top: 2px !important;
-}
-
-/*
- * If older JS has wrapped the filename in .name-text-scroll,
- * deliberately neutralize that wrapper. No scrollbar, no clipping,
- * and no ellipsis: the text follows the resized column width.
- */
-.drive-table td.name-cell .name-text-scroll {
-  display: inline !important;
-  max-width: none !important;
-  width: auto !important;
   overflow: visible !important;
-  white-space: normal !important;
   text-overflow: clip !important;
-  overflow-wrap: anywhere !important;
-  word-break: break-word !important;
-  scrollbar-width: none !important;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.45;
+  cursor: pointer;
 }
 
-.drive-table td.name-cell .name-text-scroll::-webkit-scrollbar {
-  display: none !important;
+#mainTable .name-cell .row-check,
+#searchResults .name-cell .row-check {
+  margin-right: 6px;
+  vertical-align: middle;
 }
 
-/* Straight row separator. */
-.drive-table tbody tr {
-  position: relative;
+#mainTable td:not(.name-cell),
+#mainTable th:not(:first-child) {
+  overflow: hidden;
 }
 
-.drive-table tbody tr::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 1px;
-  background: var(--border);
-  pointer-events: none;
+#mainTable td:nth-child(2),
+#mainTable td:nth-child(3) {
+  white-space: nowrap;
 }
 
-.drive-table tbody td {
+#mainTable td:nth-child(4) {
+  white-space: nowrap;
+  overflow: visible;
+}
+
+#mainTable .row-actions {
+  white-space: nowrap;
+  text-align: right;
+}
+
+/* A single horizontal rule belongs to each table row. */
+#mainTable tbody tr,
+#mainTable thead tr,
+#searchResults .drive-table tbody tr,
+#searchResults .drive-table thead tr {
+  border-bottom: 1px solid var(--table-border, #dfe3ea);
+}
+
+#mainTable tbody td,
+#searchResults .drive-table tbody td {
   border-bottom: 0 !important;
 }
 
-/* Existing resize handles stay precise and usable. */
-.drive-table th {
-  position: relative !important;
+/* Resizer handle inserted by column-resize.js */
+#mainTable th[data-col-resize] {
+  position: relative;
 }
 
-.column-resizer {
-  position: absolute !important;
-  top: 0 !important;
-  right: -4px !important;
-  width: 8px !important;
-  height: 100% !important;
+#mainTable th .column-resizer {
+  position: absolute;
+  z-index: 5;
+  top: 0;
+  right: -4px;
+  width: 9px;
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+#mainTable th .column-resizer::after {
+  content: '';
+  position: absolute;
+  top: 25%;
+  bottom: 25%;
+  left: 4px;
+  width: 1px;
+  background: transparent;
+  transition: background .12s ease;
+}
+
+#mainTable th:hover .column-resizer::after,
+#mainTable th .column-resizer.is-dragging::after {
+  background: currentColor;
+  opacity: .35;
+}
+
+body.column-resizing,
+body.column-resizing * {
   cursor: col-resize !important;
-  z-index: 20 !important;
+  user-select: none !important;
 }
 
-@media (max-width: 700px) {
-  .toolbar .search-box {
-    position: static !important;
-    transform: none !important;
-    width: 100% !important;
-    max-width: none !important;
-    order: 3 !important;
-  }
+/* Search remains independent in the header. */
+.topbar .search-box,
+.topbar-search,
+.header-search {
+  flex: 0 1 460px;
+  min-width: 220px;
+}
 
-  .toolbar {
-    flex-wrap: wrap !important;
-  }
+/* Grid mode is intentionally untouched by table rules. */
+.grid-view #mainTable,
+#mainTable.grid-view,
+#mainTable.is-grid {
+  table-layout: auto;
+}
 
-  .drive-table {
-    min-width: 820px !important;
-  }
+/* Never force table sizing onto the card/grid renderer. */
+body.grid-view #mainTable.drive-table,
+#mainTable.drive-table.grid-view,
+#mainTable.drive-table.is-grid {
+  table-layout: auto;
+}
+body.grid-view #mainTable.drive-table > colgroup,
+#mainTable.drive-table.grid-view > colgroup,
+#mainTable.drive-table.is-grid > colgroup {
+  display: none;
 }

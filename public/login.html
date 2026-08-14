@@ -5,21 +5,43 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Masuk — Telegram Drive</title>
 <link rel="stylesheet" href="style.css" />
-<link rel="stylesheet" href="unified-ui.css" />
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<style>
+.auth-wrap{width:100%;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px 20px;box-sizing:border-box}
+.auth-card{width:min(480px,calc(100vw - 40px));min-height:0;box-sizing:border-box;padding:36px 32px;overflow:visible}
+.auth-card form{width:100%}
+.auth-card input,.auth-card button[type="submit"]{width:100%;box-sizing:border-box}
+.captcha-wrap{width:100%;min-height:65px;margin:14px 0 16px;display:flex;align-items:center;justify-content:center;overflow:visible}
+.cf-turnstile{width:300px;min-width:300px;min-height:65px;margin:0 auto;display:block}
+@media(max-width:520px){.auth-wrap{padding:20px 12px}.auth-card{width:min(100%,440px);padding:30px 20px}}
+@media(max-width:360px){.auth-card{width:100%;padding-left:14px;padding-right:14px}.cf-turnstile{transform:scale(.92);transform-origin:center;width:276px;min-width:276px}}
+</style>
 </head>
 <body>
-<div class="auth-wrap"><div class="auth-card">
+<div class="auth-wrap">
+<div class="auth-card">
 <h1>Telegram Drive</h1>
-<div class="tabs"><button id="tabLogin" class="tab active" type="button">Login</button><button id="tabRegister" class="tab" type="button">Daftar</button></div>
+<div class="tabs">
+<button id="tabLogin" class="tab active" type="button">Login</button>
+<button id="tabRegister" class="tab" type="button">Daftar</button>
+</div>
 <form id="authForm">
 <input type="text" id="username" placeholder="Username" required autocomplete="username" />
 <input type="password" id="password" placeholder="Password" required autocomplete="current-password" />
-<div class="captcha-wrap"><div class="cf-turnstile" data-sitekey="0x4AAAAAAEPqDJhEGhUf4WHt" data-theme="auto" data-action="auth" data-callback="onTurnstileSuccess" data-expired-callback="onTurnstileExpired" data-error-callback="onTurnstileError"></div></div>
+<div class="captcha-wrap">
+<div class="cf-turnstile"
+data-sitekey="0x4AAAAAAEPqDJhEGhUf4WHt"
+data-theme="auto"
+data-action="auth"
+data-callback="onTurnstileSuccess"
+data-expired-callback="onTurnstileExpired"
+data-error-callback="onTurnstileError"></div>
+</div>
 <button type="submit" id="submitBtn">Masuk</button>
-</form><p id="msg" class="msg"></p>
-</div></div>
+</form>
+<p id="msg" class="msg"></p>
+</div>
+</div>
 <script src="login.js"></script>
-<script src="unified-ui.js"></script>
 </body>
 </html>

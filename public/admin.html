@@ -3,98 +3,36 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<meta name="color-scheme" content="light dark" />
 <title>Admin — Telegram Drive</title>
 <link rel="stylesheet" href="style.css" />
-<link rel="stylesheet" href="admin.css" />
 </head>
-<body class="admin-page">
-  <header class="topbar admin-topbar">
-    <div class="admin-brand">
-      <a class="admin-brand-icon" href="index.html" aria-label="Kembali ke Drive">☁</a>
-      <div>
-        <h1>Telegram Drive</h1>
-        <span>Administrator</span>
-      </div>
-    </div>
-
-    <div class="topbar-right admin-toolbar">
-      <span id="whoami" class="admin-whoami"></span>
-
-      <div class="theme-switcher" role="group" aria-label="Tema">
-        <button type="button" class="theme-btn" data-theme="light" title="Light">☀</button>
-        <button type="button" class="theme-btn" data-theme="dark" title="Dark">☾</button>
-        <button type="button" class="theme-btn" data-theme="auto" title="Otomatis">◐</button>
-      </div>
-
+<body>
+  <header class="topbar">
+    <h1>⚙ Admin Panel</h1>
+    <div class="topbar-right">
       <a href="index.html" class="admin-link">← Kembali ke Drive</a>
-      <button id="logoutBtn" class="admin-logout">Keluar</button>
+      <span id="whoami"></span>
+      <button id="logoutBtn">Keluar</button>
     </div>
   </header>
 
-  <main class="admin-wrap">
-    <section class="admin-hero">
-      <div>
-        <div class="eyebrow">ADMINISTRATION</div>
-        <h2>Panel Administrasi</h2>
-        <p>Kelola pengguna, kuota penyimpanan, dan hak akses TeleDrive.</p>
-      </div>
-      <button id="refreshBtn" class="admin-refresh" type="button">↻ Refresh</button>
-    </section>
+  <main class="drive-wrap">
+    <div id="statsRow" class="stats-row"></div>
 
-    <section id="statsRow" class="admin-stats" aria-label="Statistik"></section>
-
-    <section class="section-heading">
-      <div>
-        <div class="eyebrow">USER MANAGEMENT</div>
-        <h2>Semua User</h2>
-      </div>
-      <span id="userCount" class="user-count"></span>
-    </section>
-
-    <section class="admin-table-card">
-      <div class="admin-table-scroll">
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th>Pengguna</th>
-              <th>Terdaftar</th>
-              <th>Storage</th>
-              <th>Status</th>
-              <th class="actions-head">Aksi</th>
-            </tr>
-          </thead>
-          <tbody id="userBody">
-            <tr><td colspan="5" class="loading-row">Memuat data…</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
+    <h2 class="section-title">Semua User</h2>
+    <table class="drive-table">
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Terdaftar</th>
+          <th>Storage</th>
+          <th>Admin</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="userBody"></tbody>
+    </table>
   </main>
-
-  <div id="adminToast" class="admin-toast" hidden></div>
-
-  <div id="quotaModal" class="admin-modal" hidden>
-    <div class="admin-modal-card" role="dialog" aria-modal="true" aria-labelledby="quotaTitle">
-      <div class="admin-modal-head">
-        <div>
-          <div class="eyebrow">STORAGE</div>
-          <h3 id="quotaTitle">Ubah kuota</h3>
-        </div>
-        <button id="quotaClose" class="modal-close" type="button" aria-label="Tutup">✕</button>
-      </div>
-      <p id="quotaUser" class="modal-muted"></p>
-      <label class="admin-field">
-        Kuota (MB)
-        <input id="quotaInput" type="number" min="0" step="1" inputmode="numeric" />
-        <small>Isi 0 untuk menggunakan kuota default global.</small>
-      </label>
-      <div class="admin-modal-actions">
-        <button id="quotaCancel" class="secondary-btn" type="button">Batal</button>
-        <button id="quotaSave" class="primary-btn" type="button">Simpan</button>
-      </div>
-    </div>
-  </div>
 
 <script src="auth.js"></script>
 <script src="admin.js"></script>

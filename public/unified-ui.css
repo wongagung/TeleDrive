@@ -1,0 +1,188 @@
+
+/* TeleDrive — Unified UI layer
+   Loaded LAST on every page. Intentionally does not replace application logic. */
+:root{
+  --ui-bg:#0f1115;--ui-surface:#171a21;--ui-surface-2:#1d222b;--ui-hover:#242a34;
+  --ui-border:#2b323e;--ui-text:#edf1f7;--ui-muted:#8d96a5;--ui-faint:#667080;
+  --ui-accent:#e3a008;--ui-accent-hover:#f2b32c;--ui-danger:#e15554;
+  --ui-shadow:0 16px 50px rgba(0,0,0,.22);--ui-radius:12px;
+}
+html[data-ui-theme="light"]{
+  --ui-bg:#f4f6f9;--ui-surface:#fff;--ui-surface-2:#f8fafc;--ui-hover:#eef2f6;
+  --ui-border:#dce2ea;--ui-text:#17202b;--ui-muted:#687384;--ui-faint:#8c97a6;
+  --ui-accent:#c98700;--ui-accent-hover:#e09b00;--ui-danger:#c93f3f;
+  --ui-shadow:0 16px 45px rgba(24,39,58,.10);
+}
+html,body{min-height:100%;background:var(--ui-bg);color:var(--ui-text)}
+body{
+  background:
+    radial-gradient(900px 450px at 10% -8%,color-mix(in srgb,var(--ui-accent) 7%,transparent),transparent 65%),
+    var(--ui-bg)!important;
+  transition:background .2s,color .2s;
+}
+*{scrollbar-color:var(--ui-border) transparent}
+[hidden]{display:none!important}
+
+/* Universal topbar */
+.topbar{
+  background:color-mix(in srgb,var(--ui-surface) 94%,transparent)!important;
+  border-bottom:1px solid var(--ui-border)!important;
+  backdrop-filter:blur(16px);
+  box-shadow:0 6px 24px rgba(0,0,0,.08)!important;
+}
+.topbar h1,.topbar-brand h1{color:var(--ui-text)}
+.topbar-right{gap:8px!important}
+.topbar-right button,.topbar-right a,.admin-link,#logoutBtn{
+  min-height:36px;display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid var(--ui-border)!important;border-radius:9px!important;
+  background:var(--ui-surface-2)!important;color:var(--ui-text)!important;
+  text-decoration:none!important;padding:7px 12px!important;
+  transition:transform .15s,background .15s,border-color .15s,color .15s;
+}
+.topbar-right button:hover,.topbar-right a:hover,.admin-link:hover,#logoutBtn:hover{
+  background:var(--ui-hover)!important;border-color:color-mix(in srgb,var(--ui-accent) 45%,var(--ui-border))!important;
+  transform:translateY(-1px);
+}
+#logoutBtn:hover{color:var(--ui-danger)!important}
+
+/* Theme control injected into every authenticated header */
+.ui-theme-control{
+  display:inline-flex;align-items:center;gap:2px;padding:3px!important;
+  border:1px solid var(--ui-border);background:var(--ui-surface-2);border-radius:10px;
+}
+.ui-theme-control button{
+  min-height:29px!important;min-width:31px!important;padding:4px 7px!important;
+  border:0!important;background:transparent!important;color:var(--ui-muted)!important;
+  border-radius:7px!important;font-size:13px;cursor:pointer;
+}
+.ui-theme-control button.active{background:var(--ui-accent)!important;color:#17130a!important}
+.ui-theme-control button:hover{transform:none!important}
+
+/* Drive surface */
+.drive-wrap,.admin-wrap{position:relative;z-index:1}
+.toolbar{
+  background:color-mix(in srgb,var(--ui-surface) 78%,transparent);
+  border:1px solid var(--ui-border);border-radius:var(--ui-radius);
+  padding:10px 12px;margin-bottom:16px;box-shadow:var(--ui-shadow);
+}
+.actions button,.upload-btn,.view-toggle,.view-toggle button{
+  border-color:var(--ui-border)!important;background:var(--ui-surface)!important;color:var(--ui-text)!important;
+}
+.actions button:hover,.view-toggle button:hover:not(.active){background:var(--ui-hover)!important}
+.upload-btn{background:var(--ui-accent)!important;color:#1a1508!important;border-color:var(--ui-accent)!important}
+.view-toggle button.active{background:color-mix(in srgb,var(--ui-accent) 18%,var(--ui-surface))!important;color:var(--ui-accent)!important}
+
+/* Search gets its own full row so it never collides with header controls */
+.topbar{flex-wrap:wrap}
+.topbar-search{order:3;flex:1 0 100%;display:flex;justify-content:center;padding-top:3px}
+.topbar-search .search-box{width:min(720px,100%);max-width:none}
+#searchInput{
+  background:var(--ui-surface-2)!important;border-color:var(--ui-border)!important;color:var(--ui-text)!important;
+  height:40px!important;border-radius:10px!important;
+}
+#searchInput:focus{border-color:var(--ui-accent)!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--ui-accent) 12%,transparent)}
+/* Keep brand/actions in the first row */
+.topbar-brand{flex:0 0 auto}.topbar-right{margin-left:auto}
+
+/* Tables: fixed column geometry, straight separators */
+.table-scroll{width:100%;overflow:visible!important}
+.drive-table{width:100%!important;border-collapse:collapse!important;table-layout:fixed}
+.drive-table th,.drive-table td{
+  border-bottom:1px solid var(--ui-border)!important;
+  color:var(--ui-text);vertical-align:middle!important;
+}
+.drive-table th{color:var(--ui-muted)!important}
+.drive-table tr:hover{background:var(--ui-hover)!important}
+.drive-table th:nth-child(1),.drive-table td:nth-child(1){width:56%}
+.drive-table th:nth-child(2),.drive-table td:nth-child(2){width:18%}
+.drive-table th:nth-child(3),.drive-table td:nth-child(3){width:18%}
+.drive-table th:nth-child(4),.drive-table td:nth-child(4){width:8%}
+.name-cell{min-width:0!important}
+.name-cell .file-name,.name-cell .name-text,.name-cell span:not(.cat-dot){
+  min-width:0;overflow:hidden;text-overflow:clip;white-space:nowrap;
+}
+.row-actions{text-align:right!important;white-space:nowrap}
+
+/* Grid cards + actions: never black, actions stay inside the card */
+.grid-view{gap:14px!important}
+.grid-card{
+  background:var(--ui-surface)!important;border-color:var(--ui-border)!important;
+  box-shadow:0 5px 18px rgba(0,0,0,.06);overflow:hidden!important;
+}
+.grid-card:hover{background:var(--ui-hover)!important}
+.grid-card-actions{
+  top:auto!important;left:10px!important;right:10px!important;bottom:10px!important;
+  display:flex!important;opacity:0;transform:translateY(4px);pointer-events:none;
+  transition:opacity .15s,transform .15s;
+}
+.grid-card:hover .grid-card-actions{opacity:1;transform:none;pointer-events:auto}
+.grid-card-actions button{
+  flex:1;width:auto!important;height:32px!important;
+  background:var(--ui-surface-2)!important;border:1px solid var(--ui-border)!important;
+  color:var(--ui-text)!important;box-shadow:0 4px 12px rgba(0,0,0,.12);
+}
+.grid-card-actions button:hover{background:var(--ui-accent)!important;color:#17130a!important}
+.grid-card-check{top:10px!important;right:10px!important}
+
+/* Modals */
+.modal-overlay{background:rgba(5,8,12,.62)!important;backdrop-filter:blur(5px)}
+.modal-box{
+  background:var(--ui-surface)!important;border-color:var(--ui-border)!important;
+  box-shadow:var(--ui-shadow)!important;color:var(--ui-text);
+}
+.modal-header{border-bottom-color:var(--ui-border)!important}
+.modal-close{color:var(--ui-muted)!important}
+.modal-close:hover{background:var(--ui-hover)!important;color:var(--ui-text)!important}
+.modal-footer{border-top-color:var(--ui-border)!important}
+
+/* Auth */
+.auth-wrap{min-height:100vh!important;background:transparent}
+.auth-card{
+  width:min(480px,calc(100vw - 32px))!important;background:var(--ui-surface)!important;
+  border:1px solid var(--ui-border)!important;box-shadow:var(--ui-shadow)!important;
+  color:var(--ui-text);
+}
+.auth-card input{
+  background:var(--ui-bg)!important;border-color:var(--ui-border)!important;color:var(--ui-text)!important;
+}
+.auth-card input:focus{border-color:var(--ui-accent)!important}
+#authForm button[type="submit"]{background:var(--ui-accent)!important;color:#17130a!important}
+#authForm button[type="submit"]:disabled{opacity:.55;cursor:wait}
+.tab{color:var(--ui-muted)!important}.tab.active{background:var(--ui-accent)!important;color:#17130a!important}
+.captcha-wrap{overflow:visible!important}
+
+/* Admin */
+.admin-table-card{background:var(--ui-surface)!important;border-color:var(--ui-border)!important}
+.admin-table th{background:var(--ui-surface-2)!important;border-color:var(--ui-border)!important}
+.admin-table td{border-color:var(--ui-border)!important}
+.admin-modal{background:rgba(5,8,12,.62)!important}
+.admin-modal-card{background:var(--ui-surface)!important;border-color:var(--ui-border)!important;color:var(--ui-text)}
+.admin-field input{background:var(--ui-bg)!important;border-color:var(--ui-border)!important;color:var(--ui-text)!important}
+
+/* Toast */
+.ui-toast{
+  position:fixed;right:20px;bottom:20px;z-index:9999;padding:10px 14px;
+  background:var(--ui-surface);color:var(--ui-text);border:1px solid var(--ui-border);
+  border-radius:10px;box-shadow:var(--ui-shadow);font-size:13px;animation:uiToastIn .18s ease;
+}
+@keyframes uiToastIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+@media(max-width:760px){
+  .topbar{padding:11px 12px!important}
+  .topbar-brand h1{font-size:14px!important}
+  .topbar-right{width:100%;margin-left:0;overflow-x:auto;padding-bottom:2px}
+  .topbar-right>*{flex:0 0 auto}
+  .toolbar{align-items:stretch}
+  .toolbar .breadcrumb{overflow:hidden;text-overflow:ellipsis}
+  .actions{flex-wrap:wrap}
+  .drive-table{min-width:0!important}
+  .drive-table th:nth-child(3),.drive-table td:nth-child(3){display:none}
+  .drive-table th:nth-child(2),.drive-table td:nth-child(2){width:25%}
+  .drive-table th:nth-child(1),.drive-table td:nth-child(1){width:67%}
+  .drive-table th:nth-child(4),.drive-table td:nth-child(4){width:8%}
+}
+@media(max-width:480px){
+  .topbar-search{padding-top:2px}
+  .ui-theme-control button{min-width:28px!important;padding:4px 5px!important}
+  .grid-view{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Telegram Drive</title>
 <link rel="stylesheet" href="style.css" />
-<link rel="stylesheet" href="ui-fixes.css" />
+<link rel="stylesheet" href="navigation-columns.css" />
 </head>
 <body>
   <header class="topbar">
@@ -24,14 +24,19 @@
   <main class="drive-wrap">
     <div class="toolbar">
       <nav id="breadcrumb" class="breadcrumb"></nav>
-      <div class="search-box"><input type="text" id="searchInput" placeholder="🔍 Cari nama file..." /></div>
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="🔍 Cari nama file..." />
+      </div>
       <div class="actions">
         <div class="view-toggle">
           <button id="viewListBtn" title="Tampilan list">☰</button>
           <button id="viewGridBtn" title="Tampilan grid">▦</button>
         </div>
         <button id="newFolderBtn">+ Folder</button>
-        <label class="upload-btn">⬆ Upload<input type="file" id="fileInput" hidden /></label>
+        <label class="upload-btn">
+          ⬆ Upload
+          <input type="file" id="fileInput" hidden />
+        </label>
       </div>
     </div>
     <div id="bulkToolbar" class="bulk-toolbar" hidden>
@@ -48,20 +53,42 @@
     </div>
     <div id="searchResults" class="search-results" hidden>
       <p id="searchInfo" class="search-info"></p>
-      <table class="drive-table"><thead><tr><th>Nama</th><th>Lokasi</th><th>Ukuran</th><th></th></tr></thead><tbody id="searchBody"></tbody></table>
+      <table class="drive-table">
+        <thead><tr><th>Nama</th><th>Lokasi</th><th>Ukuran</th><th></th></tr></thead>
+        <tbody id="searchBody"></tbody>
+      </table>
     </div>
     <table id="mainTable" class="drive-table">
-      <thead><tr><th>Nama</th><th>Ukuran</th><th>Tanggal</th><th></th></tr></thead>
+      <thead>
+        <tr><th>Nama</th><th>Ukuran</th><th>Tanggal</th><th></th></tr>
+      </thead>
       <tbody id="listBody"></tbody>
     </table>
     <div id="gridView" class="grid-view" hidden></div>
     <p id="emptyMsg" class="empty" hidden>Folder ini kosong.</p>
   </main>
-  <div id="previewModal" class="modal-overlay" hidden><div class="modal-box modal-preview"><div class="modal-header"><span id="previewTitle"></span><button id="previewClose" class="modal-close">✕</button></div><div id="previewBody" class="modal-body"></div></div></div>
-  <div id="moveModal" class="modal-overlay" hidden><div class="modal-box modal-move"><div class="modal-header"><span id="moveTitle"></span><button id="moveClose" class="modal-close">✕</button></div><nav id="moveBreadcrumb" class="breadcrumb"></nav><div id="moveBody" class="move-list"></div><div class="modal-footer"><button id="moveHereBtn" class="primary-btn">Pindahkan ke sini</button></div></div></div>
-  <div id="telegramModal" class="modal-overlay" hidden><div class="modal-box modal-move"><div class="modal-header"><span>🔗 Hubungkan Telegram</span><button id="telegramModalClose" class="modal-close">✕</button></div><div id="telegramModalBody" class="telegram-link-body"></div></div></div>
+  <div id="previewModal" class="modal-overlay" hidden>
+    <div class="modal-box modal-preview">
+      <div class="modal-header"><span id="previewTitle"></span><button id="previewClose" class="modal-close">✕</button></div>
+      <div id="previewBody" class="modal-body"></div>
+    </div>
+  </div>
+  <div id="moveModal" class="modal-overlay" hidden>
+    <div class="modal-box modal-move">
+      <div class="modal-header"><span id="moveTitle"></span><button id="moveClose" class="modal-close">✕</button></div>
+      <nav id="moveBreadcrumb" class="breadcrumb"></nav>
+      <div id="moveBody" class="move-list"></div>
+      <div class="modal-footer"><button id="moveHereBtn" class="primary-btn">Pindahkan ke sini</button></div>
+    </div>
+  </div>
+  <div id="telegramModal" class="modal-overlay" hidden>
+    <div class="modal-box modal-move">
+      <div class="modal-header"><span>🔗 Hubungkan Telegram</span><button id="telegramModalClose" class="modal-close">✕</button></div>
+      <div id="telegramModalBody" class="telegram-link-body"></div>
+    </div>
+  </div>
 <script src="auth.js"></script>
-<script src="ui-fixes.js"></script>
 <script src="app.js"></script>
+<script src="navigation-columns.js"></script>
 </body>
 </html>

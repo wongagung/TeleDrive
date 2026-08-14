@@ -1,0 +1,200 @@
+
+/* TeleDrive navigation / long-name / sortable-resizable table enhancement */
+
+.toolbar {
+  flex-wrap: wrap;
+}
+
+.folder-navigation {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.folder-nav-btn {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  padding: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-sm) !important;
+  background: var(--surface) !important;
+  color: var(--text-muted) !important;
+  font-size: 16px !important;
+  line-height: 1;
+}
+
+.folder-nav-btn:hover:not(:disabled) {
+  background: var(--surface-hover) !important;
+  color: var(--text) !important;
+  border-color: var(--text-faint) !important;
+}
+
+.folder-nav-btn:disabled {
+  opacity: .35;
+  cursor: not-allowed;
+}
+
+/* Long file names are not compacted/truncated. The table gets horizontal scrolling. */
+.drive-table {
+  min-width: 900px;
+  table-layout: fixed;
+}
+
+.drive-table th:nth-child(1),
+.drive-table td:nth-child(1) {
+  width: 52%;
+  min-width: 280px;
+}
+
+.drive-table th:nth-child(2),
+.drive-table td:nth-child(2) {
+  width: 14%;
+  min-width: 100px;
+}
+
+.drive-table th:nth-child(3),
+.drive-table td:nth-child(3) {
+  width: 18%;
+  min-width: 130px;
+}
+
+.drive-table th:nth-child(4),
+.drive-table td:nth-child(4) {
+  width: 16%;
+  min-width: 150px;
+}
+
+.drive-wrap {
+  overflow-x: auto;
+}
+
+.drive-table .name-cell {
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.drive-table .name-cell > * {
+  flex-shrink: 0;
+}
+
+.drive-table .name-cell {
+  width: 100%;
+}
+
+.sortable {
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  padding-right: 28px !important;
+}
+
+.sortable::after {
+  content: "↕";
+  position: absolute;
+  right: 9px;
+  opacity: .35;
+  font-size: 11px;
+}
+
+.sortable.sort-asc::after {
+  content: "↑";
+  opacity: 1;
+  color: var(--accent);
+}
+
+.sortable.sort-desc::after {
+  content: "↓";
+  opacity: 1;
+  color: var(--accent);
+}
+
+.sortable.sort-active {
+  color: var(--accent) !important;
+}
+
+.column-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -1px;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 3;
+}
+
+.column-resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 25%;
+  bottom: 25%;
+  left: 3px;
+  width: 1px;
+  background: var(--border);
+}
+
+.column-resize-handle:hover::after {
+  background: var(--accent);
+}
+
+body.resizing-column,
+body.resizing-column * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
+.select-all-wrap {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 7px;
+  vertical-align: middle;
+}
+
+.select-all-checkbox {
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+/* Keep grid/list content from being clipped by the new table scrolling rule. */
+.grid-view {
+  min-width: 0;
+}
+
+@media (max-width: 760px) {
+  .drive-wrap {
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .toolbar {
+    align-items: stretch;
+  }
+
+  .folder-navigation {
+    width: 100%;
+  }
+
+  .breadcrumb {
+    overflow-x: auto;
+    min-width: 0;
+    padding-bottom: 2px;
+  }
+
+  .search-box {
+    order: 3;
+    width: 100%;
+    max-width: none;
+  }
+
+  .actions {
+    margin-left: auto;
+  }
+}

@@ -10,7 +10,7 @@
 </head>
 <body>
   <header class="topbar">
-    <h1>⚙ Admin Panel</h1>
+    <div class="topbar-brand"><h1>⚙ Admin Panel</h1></div>
     <div class="topbar-right">
       <a href="index.html" class="admin-link">← Kembali ke Drive</a>
       <span id="whoami"></span>
@@ -22,15 +22,17 @@
     <div id="statsRow" class="stats-row"></div>
 
     <h2 class="section-title">Semua User</h2>
-    <div id="adminTable" class="admin-grid">
-      <div class="admin-grid-row admin-grid-head">
-        <div>Username</div>
-        <div>Terdaftar</div>
-        <div>Storage</div>
-        <div>Admin</div>
-        <div></div>
+    <div class="table-scroll">
+      <div id="adminTable" class="admin-grid">
+        <div class="admin-grid-row admin-grid-head">
+          <div>Username</div>
+          <div>Terdaftar</div>
+          <div>Storage</div>
+          <div>Admin</div>
+          <div></div>
+        </div>
+        <div id="userBody"></div>
       </div>
-      <div id="userBody"></div>
     </div>
   </main>
 

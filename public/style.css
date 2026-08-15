@@ -531,5 +531,36 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
   .toolbar { flex-wrap: wrap; }
   .stats-row { flex-direction: column; }
   .grid-view { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
-  .drive-wrap { min-height: calc(100vh - 100px); padding-bottom: 32px; }
+  .drive-wrap { min-height: calc(100vh - 100px); padding-bottom: 32px; padding-left: 12px; padding-right: 12px; }
+
+  /* File list: kolom Tanggal disembunyikan supaya tabel muat tanpa perlu
+     scroll ke samping di HP -- Nama, Ukuran, Aksi tetap keliatan penuh. */
+  #mainTable, #searchResults .drive-table { min-width: 0; }
+  #mainTable th:nth-child(3), #mainTable td:nth-child(3) { display: none; }
+  #mainTable th:nth-child(1), #mainTable td:nth-child(1) { width: 54%; }
+  #mainTable th:nth-child(2), #mainTable td:nth-child(2) { width: 22%; }
+  #mainTable th:nth-child(4), #mainTable td:nth-child(4) { width: 24%; }
+  .row-actions button { padding: 7px 6px; font-size: 14px; }
+
+  .actions button, .upload-btn, .sort-control select, .sort-control button, .select-all-control, .nav-btn {
+    padding-left: 10px; padding-right: 10px; font-size: 12px;
+  }
+
+  /* Admin panel: baris tabel jadi KARTU vertikal (label di atas nilai),
+     bukan grid horizontal yang dipaksa muat / perlu di-scroll. */
+  #adminTableScroll { overflow-x: visible; }
+  .admin-grid { min-width: 0; }
+  .admin-grid-head { display: none; }
+  .admin-grid #userBody .admin-grid-row {
+    display: flex; flex-direction: column; align-items: stretch; gap: 10px;
+    padding: 16px 14px;
+  }
+  .admin-grid-row > div[data-label] { display: flex; flex-direction: column; gap: 2px; }
+  .admin-grid-row > div[data-label]::before {
+    content: attr(data-label); color: var(--text-faint); font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .05em;
+  }
+  .admin-grid-row > div[data-label="Username"] { font-size: 16px; font-weight: 700; color: var(--text); }
+  .admin-grid .row-actions { justify-content: stretch; }
+  .admin-grid .row-actions button { flex: 1; min-width: 0; }
 }

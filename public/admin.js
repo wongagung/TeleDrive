@@ -59,13 +59,13 @@ async function loadUsers() {
     const row = document.createElement('div');
     row.className = 'admin-grid-row';
     row.innerHTML = `
-      <div>${escapeHtml(u.username)}</div>
-      <div>${new Date(u.created_at).toLocaleDateString('id-ID')}</div>
-      <div>
+      <div data-label="Username">${escapeHtml(u.username)}</div>
+      <div data-label="Terdaftar">${new Date(u.created_at).toLocaleDateString('id-ID')}</div>
+      <div data-label="Storage">
         <div class="mini-bar"><div class="mini-bar-fill" style="width:${pct.toFixed(1)}%"></div></div>
         <span class="mini-bar-text">${fmtSize(u.used_bytes)} / ${fmtSize(u.quota_bytes)}${u.has_custom_quota ? ' (custom)' : ''}</span>
       </div>
-      <div>${u.is_admin ? '✅' : '—'}</div>
+      <div data-label="Admin">${u.is_admin ? '✅' : '—'}</div>
       <div class="row-actions">
         <button data-quota title="Ubah kuota">📊</button>
         <button data-toggle-admin title="${u.is_admin ? 'Cabut admin' : 'Jadikan admin'}">${u.is_admin ? '⬇ Demote' : '⬆ Promote'}</button>

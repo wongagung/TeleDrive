@@ -137,8 +137,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 /* --- Topbar (grid: brand | search | right-side controls) --- */
 .topbar {
-  display: grid;
-  grid-template-columns: minmax(170px, 1fr) minmax(280px, 520px) minmax(0, 1fr);
+  display: flex;
+  justify-content: space-between;
   align-items: center;
   gap: 22px;
   padding: 14px 28px;
@@ -146,6 +146,14 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   border-bottom: 1px solid var(--border);
   box-shadow: var(--shadow-soft);
   position: sticky; top: 0; z-index: 10;
+}
+/* Halaman dengan search box (index.html) dapat layout grid 3-kolom supaya
+   search-nya presisi di tengah; halaman tanpa search (admin.html, login)
+   otomatis tetap pakai flex space-between di atas. */
+.topbar:has(.topbar-search) {
+  display: grid;
+  align-items: center;
+  grid-template-columns: minmax(170px, 1fr) minmax(280px, 520px) minmax(0, 1fr);
 }
 .topbar-brand { min-width: 0; display: flex; align-items: center; }
 .topbar-brand h1 { font-size: 16px; margin: 0; white-space: nowrap; display: flex; align-items: center; gap: 8px; }
@@ -310,6 +318,17 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
 #searchResults .drive-table th:nth-child(2), #searchResults .drive-table td:nth-child(2) { width: 24%; }
 #searchResults .drive-table th:nth-child(3), #searchResults .drive-table td:nth-child(3) { width: 14%; }
 #searchResults .drive-table th:nth-child(4), #searchResults .drive-table td:nth-child(4) { width: 20%; }
+
+/* Tabel admin: 5 kolom (Username, Terdaftar, Storage, Admin, Aksi) --
+   punya set lebar sendiri, gak numpang ke aturan 4-kolom di atas. */
+#adminTable th:nth-child(1), #adminTable td:nth-child(1) { width: 20%; }
+#adminTable th:nth-child(2), #adminTable td:nth-child(2) { width: 14%; }
+#adminTable th:nth-child(3), #adminTable td:nth-child(3) { width: 28%; }
+#adminTable th:nth-child(4), #adminTable td:nth-child(4) { width: 10%; }
+#adminTable th:nth-child(5), #adminTable td:nth-child(5) { width: 28%; }
+#adminTable td { height: auto; min-height: var(--row-h); padding: 10px; }
+#adminTable .row-actions { display: flex; gap: 4px; justify-content: flex-end; flex-wrap: wrap; }
+#adminTable .row-actions button { font-size: 11px; padding: 5px 8px; white-space: nowrap; }
 
 .drive-table th {
   text-align: left; height: 40px; padding: 0 10px; color: var(--text-faint); font-weight: 600;

@@ -244,6 +244,19 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 }
 .upload-menu-item:hover { background: var(--surface-hover); }
 
+/* --- Drag & drop upload --- */
+.drop-overlay {
+  position: fixed; inset: 0; z-index: 200; padding: 24px;
+  background: rgba(227, 160, 8, 0.10); backdrop-filter: blur(1px);
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none; /* biar drop event tetap tembus ke window, bukan ke overlay ini */
+}
+.drop-overlay-inner {
+  border: 3px dashed var(--accent); border-radius: var(--radius-lg);
+  padding: 40px 56px; background: var(--surface); color: var(--accent);
+  font-size: 16px; font-weight: 700; box-shadow: var(--shadow-card); text-align: center;
+}
+
 .view-toggle { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
 .view-toggle button {
   padding: 8px 12px; background: var(--surface); border: none; color: var(--text-muted);

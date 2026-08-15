@@ -917,6 +917,48 @@ async function uploadQueue(files) {
   }
 }
 
+// ---------- Drag & drop upload ----------
+// Drop file dari luar (file manager / desktop) ke mana pun di halaman ini
+// langsung upload ke folder yang lagi dibuka. Pakai counter buat
+// dragenter/dragleave supaya overlay gak kedip-kedip pas mouse lewat di
+// atas elemen anak (pola standar buat drag-drop di seluruh halaman).
+const dropOverlay = document.getElementById('dropOverlay');
+let dragCounter = 0;
+
+function isFileDrag(e) {
+  return e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
+}
+
+window.addEventListener('dragenter', (e) => {
+  if (!isFileDrag(e)) return;
+  e.preventDefault();
+  dragCounter++;
+  dropOverlay.hidden = false;
+});
+
+window.addEventListener('dragover', (e) => {
+  if (!isFileDrag(e)) return;
+  e.preventDefault(); // wajib, biar browser ngizinin drop (defaultnya nolak)
+});
+
+window.addEventListener('dragleave', (e) => {
+  if (!isFileDrag(e)) return;
+  dragCounter = Math.max(0, dragCounter - 1);
+  if (dragCounter === 0) dropOverlay.hidden = true;
+});
+
+window.addEventListener('drop', async (e) => {
+  if (!isFileDrag(e)) return;
+  e.preventDefault();
+  dragCounter = 0;
+  dropOverlay.hidden = true;
+
+  // Item folder yang ke-drag ikut kebawa browser sebagai "file" tanpa
+  // ukuran/tipe -- disaring di sini biar gak nyoba upload folder kosong.
+  const files = Array.from(e.dataTransfer.files || []).filter((f) => f.size > 0 || f.type);
+  if (files.length) await uploadQueue(files);
+});
+
 async function resumableUpload(file, queueInfo) {
   const prefix = queueInfo ? `[${queueInfo.index}/${queueInfo.total}] ` : '';
   progressBox.hidden = false;

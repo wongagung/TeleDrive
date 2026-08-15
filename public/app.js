@@ -8,6 +8,116 @@ let folderStack = []; // [{id, name}]
 let selectedFiles = new Set();
 let selectedFolders = new Set();
 
+// Guard TUNGGAL untuk semua navigasi folder (list & grid). Ini yang mencegah
+// folder ke-klik berkali-kali/dobel: selama sebuah navigasi masih berjalan
+// (folderStack.push -> loadList -> render selesai), klik folder lain diabaikan.
+// Cuma ada SATU flag ini di seluruh app -- tidak ada lagi beberapa script
+// terpisah yang saling menebak state satu sama lain.
+let navBusy = false;
+
+// ---------- Riwayat folder (tombol ← →) ----------
+// Prinsip: riwayat CUMA dicatat ketika kita benar-benar BERPINDAH folder
+// (buka folder / klik breadcrumb / klik back / klik forward). Aksi lain
+// (buat folder, rename, hapus, pindah file, sort, ganti tampilan, cari)
+// TIDAK PERNAH memanggil pushHistory -- jadi tombol back tidak akan pernah
+// "muncul salah" gara-gara aksi yang bukan navigasi.
+let navBack = [];
+let navForward = [];
+
+function snapshotState() {
+  return { id: currentFolder, stack: folderStack.map((f) => ({ ...f })) };
+}
+
+function pushHistory(prevState) {
+  const last = navBack[navBack.length - 1];
+  if (!last || last.id !== prevState.id) navBack.push(prevState);
+  navForward = [];
+  updateNavButtons();
+}
+
+function updateNavButtons() {
+  const back = document.getElementById('folderBackBtn');
+  const forward = document.getElementById('folderForwardBtn');
+  if (back) back.disabled = navBusy || navBack.length === 0;
+  if (forward) forward.disabled = navBusy || navForward.length === 0;
+}
+
+async function openFolder(folder) {
+  if (navBusy) return;
+  navBusy = true;
+  try {
+    const prevState = snapshotState();
+    folderStack.push({ id: folder.id, name: folder.name });
+    currentFolder = folder.id;
+    pushHistory(prevState);
+    await loadList();
+  } finally {
+    navBusy = false;
+    updateNavButtons();
+  }
+}
+
+async function goToBreadcrumb(idx) {
+  // idx === -1 berarti Root
+  if (navBusy) return;
+  const targetId = idx === -1 ? null : folderStack[idx].id;
+  if (targetId === currentFolder) return; // sudah di sini, bukan navigasi
+  navBusy = true;
+  try {
+    const prevState = snapshotState();
+    if (idx === -1) {
+      folderStack = [];
+      currentFolder = null;
+    } else {
+      folderStack = folderStack.slice(0, idx + 1);
+      currentFolder = folderStack[idx].id;
+    }
+    pushHistory(prevState);
+    await loadList();
+  } finally {
+    navBusy = false;
+    updateNavButtons();
+  }
+}
+
+async function goFolderBack() {
+  if (navBusy || !navBack.length) return;
+  navBusy = true;
+  updateNavButtons();
+  try {
+    const current = snapshotState();
+    const target = navBack.pop();
+    navForward.push(current);
+    folderStack = target.stack;
+    currentFolder = target.id;
+    await loadList();
+  } finally {
+    navBusy = false;
+    updateNavButtons();
+  }
+}
+
+async function goFolderForward() {
+  if (navBusy || !navForward.length) return;
+  navBusy = true;
+  updateNavButtons();
+  try {
+    const current = snapshotState();
+    const target = navForward.pop();
+    navBack.push(current);
+    folderStack = target.stack;
+    currentFolder = target.id;
+    await loadList();
+  } finally {
+    navBusy = false;
+    updateNavButtons();
+  }
+}
+
+document.getElementById('folderBackBtn').onclick = goFolderBack;
+document.getElementById('folderForwardBtn').onclick = goFolderForward;
+updateNavButtons();
+
 // Tampilkan link "Admin" di topbar kalau user ini admin
 (async () => {
   const res = await api('/api/auth/me');
@@ -49,26 +159,129 @@ function renderBreadcrumb() {
   bc.innerHTML = '';
   const root = document.createElement('span');
   root.textContent = '🏠 Root';
-  root.onclick = () => { folderStack = []; currentFolder = null; loadList(); };
+  root.onclick = () => goToBreadcrumb(-1);
   bc.appendChild(root);
 
   folderStack.forEach((f, idx) => {
     bc.append(' / ');
     const s = document.createElement('span');
     s.textContent = f.name;
-    s.onclick = () => { folderStack = folderStack.slice(0, idx + 1); currentFolder = f.id; loadList(); };
+    s.onclick = () => goToBreadcrumb(idx);
     bc.appendChild(s);
   });
 }
 
 let viewMode = localStorage.getItem('td_view_mode') || 'list';
-let lastData = null; // cache data terakhir biar toggle view gak perlu fetch ulang ke server
+let lastData = null; // cache data terakhir biar toggle view / sort gak perlu fetch ulang ke server
+
+// ---------- Sort (Nama / Ukuran / Tanggal) ----------
+
+const SORT_KEY = 'td_sort_key';
+const SORT_DIR = 'td_sort_dir';
+let sortKey = localStorage.getItem(SORT_KEY) || 'name';
+let sortDir = localStorage.getItem(SORT_DIR) || 'asc';
+
+function compareByKey(a, b, isFolder) {
+  if (sortKey === 'size') {
+    const av = isFolder ? 0 : Number(a.size || 0);
+    const bv = isFolder ? 0 : Number(b.size || 0);
+    if (av !== bv) return av - bv;
+  } else if (sortKey === 'date') {
+    const av = new Date(a.created_at || 0).getTime();
+    const bv = new Date(b.created_at || 0).getTime();
+    if (av !== bv) return av - bv;
+  }
+  const an = String(a.original_name || a.name || '');
+  const bn = String(b.original_name || b.name || '');
+  return an.localeCompare(bn, 'id', { numeric: true, sensitivity: 'base' });
+}
+
+function sortData(data) {
+  if (!data) return;
+  const dir = sortDir === 'desc' ? -1 : 1;
+  if (Array.isArray(data.folders)) data.folders.sort((a, b) => compareByKey(a, b, true) * dir);
+  if (Array.isArray(data.files)) data.files.sort((a, b) => compareByKey(a, b, false) * dir);
+}
+
+function setSort(key, dir) {
+  sortKey = key;
+  sortDir = dir;
+  localStorage.setItem(SORT_KEY, sortKey);
+  localStorage.setItem(SORT_DIR, sortDir);
+  sortData(lastData);
+  renderCurrentView();
+}
+
+function initSortControl() {
+  const select = document.getElementById('sortSelect');
+  const dirBtn = document.getElementById('sortDirBtn');
+  if (!select || !dirBtn) return;
+  select.value = sortKey;
+  dirBtn.textContent = sortDir === 'asc' ? '↑' : '↓';
+  dirBtn.title = sortDir === 'asc' ? 'Urutan naik (A-Z / kecil-besar)' : 'Urutan turun (Z-A / besar-kecil)';
+
+  select.onchange = () => setSort(select.value, sortDir);
+  dirBtn.onclick = () => {
+    const nextDir = sortDir === 'asc' ? 'desc' : 'asc';
+    dirBtn.textContent = nextDir === 'asc' ? '↑' : '↓';
+    setSort(sortKey, nextDir);
+  };
+}
+
+function updateSortHeaders() {
+  const table = document.getElementById('mainTable');
+  if (!table) return;
+  table.querySelectorAll('thead th[data-sort-key]').forEach((th) => {
+    const key = th.dataset.sortKey;
+    th.classList.toggle('sort-active', key === sortKey);
+    const arrow = th.querySelector('.sort-arrow');
+    if (arrow) arrow.textContent = key === sortKey ? (sortDir === 'asc' ? '↑' : '↓') : '';
+  });
+}
+
+function initSortHeaders() {
+  const table = document.getElementById('mainTable');
+  if (!table) return;
+  table.querySelectorAll('thead th[data-sort-key]').forEach((th) => {
+    th.classList.add('sortable');
+    if (!th.querySelector('.sort-arrow')) th.insertAdjacentHTML('beforeend', ' <span class="sort-arrow"></span>');
+    th.onclick = () => {
+      const key = th.dataset.sortKey;
+      setSort(key, key === sortKey ? (sortDir === 'asc' ? 'desc' : 'asc') : 'asc');
+    };
+  });
+  updateSortHeaders();
+}
+
+// ---------- Select All ----------
+
+function initSelectAll() {
+  const cb = document.getElementById('selectAllBox');
+  if (!cb) return;
+  cb.onchange = () => {
+    if (!lastData) return;
+    lastData.folders.forEach((f) => { if (cb.checked) selectedFolders.add(f.id); else selectedFolders.delete(f.id); });
+    lastData.files.forEach((f) => { if (cb.checked) selectedFiles.add(f.id); else selectedFiles.delete(f.id); });
+    renderCurrentView();
+  };
+}
+
+function updateSelectAllUI() {
+  const cb = document.getElementById('selectAllBox');
+  if (!cb || !lastData) return;
+  const total = lastData.folders.length + lastData.files.length;
+  const selected = lastData.folders.filter((f) => selectedFolders.has(f.id)).length +
+    lastData.files.filter((f) => selectedFiles.has(f.id)).length;
+  cb.checked = total > 0 && selected === total;
+  cb.indeterminate = selected > 0 && selected < total;
+}
 
 async function loadList() {
   renderBreadcrumb();
   const q = currentFolder ? `?folder_id=${currentFolder}` : '';
   const res = await api(`/api/drive/list${q}`);
   const data = await res.json();
+  sortData(data);
   lastData = data;
 
   renderQuota(data.quota);
@@ -100,6 +313,8 @@ function renderCurrentView() {
     renderTableView(lastData);
   }
   renderBulkToolbar();
+  updateSortHeaders();
+  updateSelectAllUI();
 }
 
 function renderTableView(data) {
@@ -111,7 +326,7 @@ function renderTableView(data) {
     tr.innerHTML = `
       <td class="name-cell">
         <input type="checkbox" class="row-check" data-folder-check="${f.id}" ${selectedFolders.has(f.id) ? 'checked' : ''} />
-        📁 ${escapeHtml(f.name)}
+        <span class="name-text">📁 ${escapeHtml(f.name)}</span>
       </td>
       <td>—</td>
       <td>${new Date(f.created_at).toLocaleDateString('id-ID')}</td>
@@ -128,9 +343,7 @@ function renderTableView(data) {
     const nameSpan = tr.querySelector('.name-cell');
     nameSpan.onclick = (e) => {
       if (e.target.closest('input')) return;
-      folderStack.push({ id: f.id, name: f.name });
-      currentFolder = f.id;
-      loadList();
+      openFolder(f);
     };
     tr.querySelector('[data-rename-folder]').onclick = async (e) => {
       e.stopPropagation();
@@ -161,7 +374,7 @@ function renderTableView(data) {
     tr.innerHTML = `
       <td class="name-cell cat-${f.category}">
         <input type="checkbox" class="row-check" data-file-check="${f.id}" ${selectedFiles.has(f.id) ? 'checked' : ''} />
-        <span class="cat-dot"></span>${icon} ${escapeHtml(f.original_name)}
+        <span class="name-text"><span class="cat-dot"></span>${icon} ${escapeHtml(f.original_name)}</span>
       </td>
       <td>${fmtSize(f.size)}</td>
       <td>${new Date(f.created_at).toLocaleDateString('id-ID')}</td>
@@ -229,9 +442,7 @@ function renderGridView(data) {
     };
     card.onclick = (e) => {
       if (e.target.closest('input') || e.target.closest('button')) return;
-      folderStack.push({ id: f.id, name: f.name });
-      currentFolder = f.id;
-      loadList();
+      openFolder(f);
     };
     card.querySelector('[data-rename-folder]').onclick = async (e) => {
       e.stopPropagation();
@@ -266,9 +477,6 @@ function renderGridView(data) {
     if (isImage) {
       thumbHtml = `<img src="${previewUrl(f.id)}" alt="${escapeHtml(f.original_name)}" loading="lazy" />`;
     } else if (isVideo) {
-      // Coba tampilkan thumbnail frame asli (hasil ffmpeg saat upload).
-      // Kalau gagal load (belum ada / ffmpeg gak keinstall di server),
-      // onerror di bawah otomatis fallback ke ikon+badge kayak biasa.
       thumbHtml = `<img src="${thumbnailUrl(f.id)}" alt="${escapeHtml(f.original_name)}" loading="lazy" /><div class="play-badge">▶</div>`;
     } else {
       thumbHtml = categoryIcon(f.category);
@@ -292,7 +500,6 @@ function renderGridView(data) {
     if (thumbImg) {
       thumbImg.onerror = () => {
         if (isVideo) {
-          // Thumbnail gagal load -- buang <img>-nya, biarin play-badge, kasih ikon fallback
           thumbImg.remove();
           card.querySelector('.grid-card-thumb').insertAdjacentHTML('afterbegin', categoryIcon(f.category));
         } else {
@@ -373,6 +580,7 @@ function toggleSelect(type, id, checked) {
   const set = type === 'folder' ? selectedFolders : selectedFiles;
   if (checked) set.add(id); else set.delete(id);
   renderBulkToolbar();
+  updateSelectAllUI();
 }
 
 function clearSelection() {
@@ -380,6 +588,7 @@ function clearSelection() {
   selectedFolders.clear();
   document.querySelectorAll('.row-check, .grid-card-check').forEach((cb) => { cb.checked = false; });
   renderBulkToolbar();
+  updateSelectAllUI();
 }
 
 function renderBulkToolbar() {
@@ -483,8 +692,6 @@ function openPreview(id, name, mime) {
 }
 
 function closePreview() {
-  // Hentikan playback video/audio yang lagi jalan SEBELUM modal ditutup,
-  // supaya suaranya gak tetap muter di background.
   const media = previewBody.querySelector('video, audio');
   if (media) { media.pause(); media.removeAttribute('src'); media.load(); }
   previewModal.hidden = true;
@@ -540,7 +747,6 @@ async function loadMovePicker() {
   const data = await res.json();
 
   moveBody.innerHTML = '';
-  // Jangan tampilkan folder yang sedang dipindah (atau sedang dipilih di bulk) sebagai tujuan
   const folders = data.folders.filter((f) => {
     if (moveTarget.type === 'folder' && f.id === moveTarget.id) return false;
     if (moveTarget.type === 'bulk' && selectedFolders.has(f.id)) return false;
@@ -625,7 +831,7 @@ async function openTelegramModal() {
     document.getElementById('tgUnlinkBtn').onclick = async () => {
       if (!confirm('Putuskan koneksi Telegram? Kamu tidak akan dapat notifikasi kuota lagi.')) return;
       const r = await api('/api/auth/telegram/link', { method: 'DELETE' });
-      if (r && r.ok) openTelegramModal(); // refresh tampilan
+      if (r && r.ok) openTelegramModal();
     };
   } else {
     telegramModalBody.innerHTML = `
@@ -679,8 +885,6 @@ async function resumableUpload(file) {
   try {
     let uploadId, blockSize, totalBlocks, alreadyReceived = new Set();
 
-    // Cek apakah ada sesi upload file yang sama (nama+ukuran+folder) yang belum
-    // selesai dari percobaan sebelumnya (mis. tab ke-reload di tengah upload).
     const existingId = localStorage.getItem(resumeKey);
     if (existingId) {
       const statusRes = await api(`/api/drive/upload/${existingId}/status`);
@@ -692,11 +896,10 @@ async function resumableUpload(file) {
         blockSize = Math.ceil(file.size / totalBlocks);
         progressStatus.textContent = `Melanjutkan upload "${file.name}" (${alreadyReceived.size}/${totalBlocks} bagian sudah terkirim)...`;
       } else {
-        localStorage.removeItem(resumeKey); // sesi lama sudah tidak valid/kadaluarsa
+        localStorage.removeItem(resumeKey);
       }
     }
 
-    // Sesi baru kalau belum ada / sesi lama tidak valid
     if (!uploadId) {
       const initRes = await api('/api/drive/upload/init', {
         method: 'POST',
@@ -716,7 +919,6 @@ async function resumableUpload(file) {
       localStorage.setItem(resumeKey, uploadId);
     }
 
-    // Upload tiap block yang BELUM diterima server, dengan retry
     for (let i = 0; i < totalBlocks; i++) {
       if (alreadyReceived.has(i)) {
         const pct = Math.round(((i + 1) / totalBlocks) * 100);
@@ -751,7 +953,6 @@ async function resumableUpload(file) {
       progressStatus.textContent = `Mengunggah "${file.name}" — ${pct}% (${i + 1}/${totalBlocks} bagian)`;
     }
 
-    // Selesaikan (server gabung block + kirim ke Telegram)
     progressStatus.textContent = `Mengirim "${file.name}" ke Telegram...`;
     const completeRes = await api(`/api/drive/upload/${uploadId}/complete`, { method: 'POST' });
     if (!completeRes.ok) throw new Error((await completeRes.json()).error || 'Gagal menyelesaikan upload');
@@ -760,7 +961,6 @@ async function resumableUpload(file) {
     progressBox.hidden = true;
     loadList();
   } catch (err) {
-    // JANGAN hapus resumeKey di sini — biar bisa dilanjut kalau file yang sama diupload ulang
     progressStatus.textContent = `Gagal (bisa dicoba lagi, progres tersimpan): ${err.message}`;
     setTimeout(() => { progressBox.hidden = true; }, 5000);
   }
@@ -789,7 +989,7 @@ searchInput.addEventListener('input', () => {
 function exitSearchMode() {
   searchResults.hidden = true;
   document.getElementById('breadcrumb').hidden = false;
-  renderCurrentView(); // balik ke list ATAU grid, sesuai viewMode yang lagi aktif
+  renderCurrentView();
 }
 
 async function runSearch(q) {
@@ -813,7 +1013,7 @@ async function runSearch(q) {
     const icon = categoryIcon(f.category);
     const location = f.folder_path.length ? f.folder_path.join(' / ') : '🏠 Root';
     tr.innerHTML = `
-      <td class="name-cell cat-${f.category}"><span class="cat-dot"></span>${icon} ${escapeHtml(f.original_name)}</td>
+      <td class="name-cell cat-${f.category}"><span class="name-text"><span class="cat-dot"></span>${icon} ${escapeHtml(f.original_name)}</span></td>
       <td class="search-location">${escapeHtml(location)}</td>
       <td>${fmtSize(f.size)}</td>
       <td class="row-actions"><button data-dl title="Download">⬇</button></td>
@@ -826,4 +1026,7 @@ async function runSearch(q) {
   });
 }
 
+initSortControl();
+initSortHeaders();
+initSelectAll();
 loadList();

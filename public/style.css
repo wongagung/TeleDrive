@@ -540,11 +540,35 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
   #mainTable th:nth-child(1), #mainTable td:nth-child(1) { width: 54%; }
   #mainTable th:nth-child(2), #mainTable td:nth-child(2) { width: 22%; }
   #mainTable th:nth-child(4), #mainTable td:nth-child(4) { width: 24%; }
-  .row-actions button { padding: 7px 6px; font-size: 14px; }
+  .row-actions { gap: 2px; flex-wrap: nowrap; }
+  .row-actions button { padding: 8px 7px; font-size: 15px; min-width: 30px; }
 
+  /* Toolbar: tiap grup (breadcrumb+nav, lalu tombol aksi) ambil satu baris
+     penuh sendiri-sendiri kalau kepaksa wrap, bukan numpuk berantakan. */
+  .toolbar-left, .actions { width: 100%; }
+  .actions { justify-content: flex-start; row-gap: 8px; }
   .actions button, .upload-btn, .sort-control select, .sort-control button, .select-all-control, .nav-btn {
     padding-left: 10px; padding-right: 10px; font-size: 12px;
   }
+  .select-all-control span { display: none; } /* cuma checkbox, "Pilih semua" disembunyikan biar hemat tempat */
+
+  /* Hasil pencarian: kolom lokasi disembunyikan di HP supaya gak sesak
+     (info paling penting -- nama & ukuran -- tetap kelihatan penuh). */
+  #searchResults .drive-table { min-width: 0; }
+  #searchResults .drive-table th:nth-child(2), #searchResults .drive-table td:nth-child(2) { display: none; }
+  #searchResults .drive-table th:nth-child(1), #searchResults .drive-table td:nth-child(1) { width: 56%; }
+  #searchResults .drive-table th:nth-child(3), #searchResults .drive-table td:nth-child(3) { width: 24%; }
+  #searchResults .drive-table th:nth-child(4), #searchResults .drive-table td:nth-child(4) { width: 20%; }
+
+  /* Bulk toolbar (waktu ada file terpilih) -- biar tombolnya gak dempet
+     kalau layar sempit. */
+  .bulk-toolbar { flex-wrap: wrap; row-gap: 10px; }
+  .bulk-actions { width: 100%; }
+  .bulk-actions button { flex: 1; }
+
+  /* Grid view: target sentuh tombol aksi digedein dikit buat jari. */
+  .grid-card-actions { height: 38px; }
+  .grid-card-actions button { height: 36px; font-size: 13px; }
 
   /* Admin panel: baris tabel jadi KARTU vertikal (label di atas nilai),
      bukan grid horizontal yang dipaksa muat / perlu di-scroll. */

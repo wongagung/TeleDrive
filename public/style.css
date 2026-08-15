@@ -537,11 +537,16 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
      scroll ke samping di HP -- Nama, Ukuran, Aksi tetap keliatan penuh. */
   #mainTable, #searchResults .drive-table { min-width: 0; }
   #mainTable th:nth-child(3), #mainTable td:nth-child(3) { display: none; }
-  #mainTable th:nth-child(1), #mainTable td:nth-child(1) { width: 54%; }
-  #mainTable th:nth-child(2), #mainTable td:nth-child(2) { width: 22%; }
-  #mainTable th:nth-child(4), #mainTable td:nth-child(4) { width: 24%; }
-  .row-actions { gap: 2px; flex-wrap: nowrap; }
-  .row-actions button { padding: 8px 7px; font-size: 15px; min-width: 30px; }
+  #mainTable th:nth-child(1), #mainTable td:nth-child(1) { width: 42%; }
+  #mainTable th:nth-child(2), #mainTable td:nth-child(2) { width: 18%; }
+  #mainTable th:nth-child(4), #mainTable td:nth-child(4) { width: 40%; }
+  /* Tombol "Lihat" disembunyikan di HP -- tap nama filenya sendiri udah
+     buka preview, jadi gak perlu 2 tombol buat aksi yang sama. Ini juga
+     bikin ruang cukup buat 4 tombol sisanya (unduh/rename/pindah/hapus)
+     supaya gak ada yang kepotong td{overflow:hidden}. */
+  .row-actions button[data-preview] { display: none; }
+  .row-actions { gap: 0; white-space: nowrap; }
+  .row-actions button { padding: 6px 5px; font-size: 13px; }
 
   /* Toolbar: tiap grup (breadcrumb+nav, lalu tombol aksi) ambil satu baris
      penuh sendiri-sendiri kalau kepaksa wrap, bukan numpuk berantakan. */

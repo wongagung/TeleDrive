@@ -319,23 +319,6 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
 #searchResults .drive-table th:nth-child(3), #searchResults .drive-table td:nth-child(3) { width: 14%; }
 #searchResults .drive-table th:nth-child(4), #searchResults .drive-table td:nth-child(4) { width: 20%; }
 
-/* Tabel admin: 5 kolom (Username, Terdaftar, Storage, Admin, Aksi) --
-   punya set lebar sendiri, gak numpang ke aturan 4-kolom di atas. */
-#adminTable th:nth-child(1), #adminTable td:nth-child(1) { width: 18%; }
-#adminTable th:nth-child(2), #adminTable td:nth-child(2) { width: 13%; }
-#adminTable th:nth-child(3), #adminTable td:nth-child(3) { width: 25%; }
-#adminTable th:nth-child(4), #adminTable td:nth-child(4) { width: 9%; }
-#adminTable th:nth-child(5), #adminTable td:nth-child(5) { width: 35%; }
-#adminTable td { height: auto; min-height: var(--row-h); padding: 14px 10px; }
-#adminTable .row-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; align-items: center; }
-#adminTable .row-actions button {
-  font-size: 13px; font-weight: 600; padding: 9px 14px; white-space: nowrap;
-  border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface); color: var(--text);
-}
-#adminTable .row-actions button:hover { background: var(--surface-hover); border-color: var(--text-faint); }
-#adminTable .row-actions button[data-quota] { font-size: 15px; padding: 9px 12px; }
-#adminTable .row-actions button.danger-btn:hover { border-color: var(--danger); }
-
 .drive-table th {
   text-align: left; height: 40px; padding: 0 10px; color: var(--text-faint); font-weight: 600;
   border-bottom: 1px solid var(--border); font-size: 11px; text-transform: uppercase; letter-spacing: .04em;
@@ -483,6 +466,35 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
 .mini-bar { height: 5px; width: 140px; background: var(--bg); border-radius: 3px; overflow: hidden; margin-bottom: 3px; }
 .mini-bar-fill { height: 100%; background: var(--accent); }
 .mini-bar-text { font-size: 11px; color: var(--text-faint); }
+
+/* Daftar user admin — CSS Grid (bukan <table>), supaya lebarnya selalu
+   100% mengikuti container tanpa tergantung algoritma table-layout. */
+.admin-grid { width: 100%; }
+.admin-grid-row {
+  display: grid;
+  grid-template-columns: 18% 13% 25% 9% 1fr;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+}
+.admin-grid-head {
+  padding: 0 10px; height: 40px; color: var(--text-faint); font-weight: 600;
+  border-bottom: 1px solid var(--border); font-size: 11px; text-transform: uppercase; letter-spacing: .04em;
+}
+.admin-grid #userBody .admin-grid-row {
+  padding: 14px 10px; border-bottom: 1px solid var(--border); font-size: 14px; transition: background-color .12s var(--ease);
+}
+.admin-grid #userBody .admin-grid-row:hover { background: var(--surface-hover); }
+.admin-grid #userBody .admin-grid-row:last-child { border-bottom: 1px solid var(--border); }
+.admin-grid .row-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; align-items: center; min-width: 0; }
+.admin-grid .row-actions button {
+  font-size: 13px; font-weight: 600; padding: 9px 14px; white-space: nowrap;
+  border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer;
+}
+.admin-grid .row-actions button:hover { background: var(--surface-hover); border-color: var(--text-faint); }
+.admin-grid .row-actions button[data-quota] { font-size: 15px; padding: 9px 12px; }
+.admin-grid .row-actions button.danger-btn:hover { border-color: var(--danger); }
 
 /* --- Modal hubungkan Telegram --- */
 .telegram-link-body { padding: 18px; font-size: 14px; line-height: 1.5; color: var(--text); }

@@ -56,23 +56,24 @@ async function loadUsers() {
 
   data.users.forEach((u) => {
     const pct = u.quota_bytes > 0 ? Math.min(100, (u.used_bytes / u.quota_bytes) * 100) : 0;
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${escapeHtml(u.username)}</td>
-      <td>${new Date(u.created_at).toLocaleDateString('id-ID')}</td>
-      <td>
+    const row = document.createElement('div');
+    row.className = 'admin-grid-row';
+    row.innerHTML = `
+      <div>${escapeHtml(u.username)}</div>
+      <div>${new Date(u.created_at).toLocaleDateString('id-ID')}</div>
+      <div>
         <div class="mini-bar"><div class="mini-bar-fill" style="width:${pct.toFixed(1)}%"></div></div>
         <span class="mini-bar-text">${fmtSize(u.used_bytes)} / ${fmtSize(u.quota_bytes)}${u.has_custom_quota ? ' (custom)' : ''}</span>
-      </td>
-      <td>${u.is_admin ? '✅' : '—'}</td>
-      <td class="row-actions">
+      </div>
+      <div>${u.is_admin ? '✅' : '—'}</div>
+      <div class="row-actions">
         <button data-quota title="Ubah kuota">📊</button>
         <button data-toggle-admin title="${u.is_admin ? 'Cabut admin' : 'Jadikan admin'}">${u.is_admin ? '⬇ Demote' : '⬆ Promote'}</button>
         <button data-delete title="Hapus user" class="danger-btn">🗑</button>
-      </td>
+      </div>
     `;
 
-    tr.querySelector('[data-quota]').onclick = async () => {
+    row.querySelector('[data-quota]').onclick = async () => {
       const currentMb = u.has_custom_quota ? Math.round(u.quota_bytes / 1024 / 1024) : 0;
       const input = prompt(
         `Kuota untuk "${u.username}" dalam MB (0 = pakai default global):`,
@@ -89,7 +90,7 @@ async function loadUsers() {
       if (res.ok) loadUsers(); else alert((await res.json()).error);
     };
 
-    tr.querySelector('[data-toggle-admin]').onclick = async () => {
+    row.querySelector('[data-toggle-admin]').onclick = async () => {
       const makeAdmin = !u.is_admin;
       if (!confirm(`${makeAdmin ? 'Jadikan' : 'Cabut status admin dari'} "${u.username}"?`)) return;
 
@@ -100,14 +101,14 @@ async function loadUsers() {
       if (res.ok) loadUsers(); else alert((await res.json()).error);
     };
 
-    tr.querySelector('[data-delete]').onclick = async () => {
+    row.querySelector('[data-delete]').onclick = async () => {
       if (!confirm(`Hapus user "${u.username}" beserta SEMUA file & foldernya? Ini tidak bisa dibatalkan.`)) return;
 
       const res = await api(`/api/admin/users/${u.id}`, { method: 'DELETE' });
       if (res.ok) { loadUsers(); loadStats(); } else alert((await res.json()).error);
     };
 
-    body.appendChild(tr);
+    body.appendChild(row);
   });
 }
 

@@ -58,7 +58,19 @@
           <button id="viewGridBtn" title="Tampilan grid">▦</button>
         </div>
         <button id="newFolderBtn">+ Folder</button>
-        <label class="upload-btn">⬆ Upload<input type="file" id="fileInput" hidden /></label>
+        <div class="upload-menu-wrap">
+          <button id="uploadMenuBtn" class="upload-btn" type="button">⬆ Upload ▾</button>
+          <div id="uploadMenu" class="upload-menu" hidden>
+            <label class="upload-menu-item">
+              📁 Berkas
+              <input type="file" id="fileInputFiles" multiple hidden />
+            </label>
+            <label class="upload-menu-item">
+              🖼️ Galeri
+              <input type="file" id="fileInputGallery" accept="image/*,video/*" multiple hidden />
+            </label>
+          </div>
+        </div>
       </div>
     </div>
 

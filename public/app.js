@@ -864,20 +864,63 @@ async function generateTelegramCode() {
 
 // ---------- Resumable upload ----------
 
-document.getElementById('fileInput').onchange = async (e) => {
-  const file = e.target.files[0];
+document.getElementById('fileInputFiles').onchange = async (e) => {
+  const files = Array.from(e.target.files || []);
   e.target.value = '';
-  if (!file) return;
-  await resumableUpload(file);
+  closeUploadMenu();
+  if (!files.length) return;
+  await uploadQueue(files);
 };
+
+document.getElementById('fileInputGallery').onchange = async (e) => {
+  const files = Array.from(e.target.files || []);
+  e.target.value = '';
+  closeUploadMenu();
+  if (!files.length) return;
+  await uploadQueue(files);
+};
+
+// Menu kecil "Berkas" vs "Galeri" -- opsi "Berkas" buka file manager
+// (paling aman buat dapet file asli tanpa diproses ulang), opsi "Galeri"
+// buka picker foto/video bawaan HP. Kompresi galeri itu keputusan OS
+// (iOS/Android), gak bisa dipaksa dari web -- "Berkas" jalur paling aman
+// buat file 1:1 asli.
+const uploadMenuBtn = document.getElementById('uploadMenuBtn');
+const uploadMenu = document.getElementById('uploadMenu');
+
+function closeUploadMenu() { uploadMenu.hidden = true; }
+function toggleUploadMenu() { uploadMenu.hidden = !uploadMenu.hidden; }
+
+uploadMenuBtn.onclick = (e) => { e.stopPropagation(); toggleUploadMenu(); };
+document.addEventListener('click', (e) => {
+  if (!uploadMenu.hidden && !e.target.closest('.upload-menu-wrap')) closeUploadMenu();
+});
 
 const progressBox = document.getElementById('uploadProgress');
 const progressBar = document.getElementById('uploadBar');
 const progressStatus = document.getElementById('uploadStatus');
 
-async function resumableUpload(file) {
+/** Upload banyak file sekaligus, SATU PER SATU (bukan paralel) --
+ * lebih aman buat koneksi & kuota server, dan progress bar-nya jelas per
+ * file. Kalau satu file gagal, lanjut ke file berikutnya (gak ngeblok
+ * semuanya), lalu tampilkan ringkasan di akhir. */
+async function uploadQueue(files) {
+  const failed = [];
+  for (let i = 0; i < files.length; i++) {
+    const ok = await resumableUpload(files[i], { index: i + 1, total: files.length });
+    if (!ok) failed.push(files[i].name);
+  }
+  progressBox.hidden = true;
+  loadList();
+  if (failed.length) {
+    alert(`${failed.length} dari ${files.length} file gagal diupload:\n${failed.join('\n')}`);
+  }
+}
+
+async function resumableUpload(file, queueInfo) {
+  const prefix = queueInfo ? `[${queueInfo.index}/${queueInfo.total}] ` : '';
   progressBox.hidden = false;
-  progressStatus.textContent = `Menyiapkan "${file.name}"...`;
+  progressStatus.textContent = `${prefix}Menyiapkan "${file.name}"...`;
   progressBar.style.width = '0%';
 
   const resumeKey = `td_resume_${file.name}_${file.size}_${currentFolder || 'root'}`;
@@ -894,7 +937,7 @@ async function resumableUpload(file) {
         totalBlocks = status.total_blocks;
         alreadyReceived = new Set(status.received_blocks);
         blockSize = Math.ceil(file.size / totalBlocks);
-        progressStatus.textContent = `Melanjutkan upload "${file.name}" (${alreadyReceived.size}/${totalBlocks} bagian sudah terkirim)...`;
+        progressStatus.textContent = `${prefix}Melanjutkan upload "${file.name}" (${alreadyReceived.size}/${totalBlocks} bagian sudah terkirim)...`;
       } else {
         localStorage.removeItem(resumeKey);
       }
@@ -943,26 +986,26 @@ async function resumableUpload(file) {
           break;
         } catch (err) {
           if (attempt >= 3) throw err;
-          progressStatus.textContent = `Block ${i + 1}/${totalBlocks} gagal, mencoba lagi (${attempt}/3)...`;
+          progressStatus.textContent = `${prefix}Block ${i + 1}/${totalBlocks} gagal, mencoba lagi (${attempt}/3)...`;
           await new Promise((r) => setTimeout(r, 1000 * attempt));
         }
       }
 
       const pct = Math.round(((i + 1) / totalBlocks) * 100);
       progressBar.style.width = pct + '%';
-      progressStatus.textContent = `Mengunggah "${file.name}" — ${pct}% (${i + 1}/${totalBlocks} bagian)`;
+      progressStatus.textContent = `${prefix}Mengunggah "${file.name}" — ${pct}% (${i + 1}/${totalBlocks} bagian)`;
     }
 
-    progressStatus.textContent = `Mengirim "${file.name}" ke Telegram...`;
+    progressStatus.textContent = `${prefix}Mengirim "${file.name}" ke Telegram...`;
     const completeRes = await api(`/api/drive/upload/${uploadId}/complete`, { method: 'POST' });
     if (!completeRes.ok) throw new Error((await completeRes.json()).error || 'Gagal menyelesaikan upload');
 
     localStorage.removeItem(resumeKey);
-    progressBox.hidden = true;
-    loadList();
+    return true;
   } catch (err) {
-    progressStatus.textContent = `Gagal (bisa dicoba lagi, progres tersimpan): ${err.message}`;
-    setTimeout(() => { progressBox.hidden = true; }, 5000);
+    progressStatus.textContent = `${prefix}Gagal: "${file.name}" — ${err.message}`;
+    await new Promise((r) => setTimeout(r, 1500));
+    return false;
   }
 }
 

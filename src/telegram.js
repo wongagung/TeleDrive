@@ -173,8 +173,44 @@ async function getLocalFilePath(fileId) {
 }
 
 /**
+ * Fallback kalau deleteMessage gagal (pesan lebih dari 48 jam, jadi
+ * Telegram nolak dihapus): ganti ISI pesannya (bukan cuma caption) jadi
+ * file kecil placeholder + teks "sudah dihapus", lewat editMessageMedia.
+ * Ini beda dari sekadar edit caption -- dokumen aslinya beneran diganti,
+ * jadi bit-bit filenya gak lagi bisa diakses siapa pun dari pesan itu.
+ * Telegram gak batasi umur pesan buat DIEDIT oleh bot (beda dari hapus),
+ * jadi ini biasanya berhasil walau pesannya udah lama.
+ */
+async function redactMessage(messageId) {
+  try {
+    const text = 'File ini sudah dihapus dari TeleDrive.';
+    const blob = new Blob([Buffer.from(text, 'utf8')], { type: 'text/plain' });
+
+    const form = new FormData();
+    form.append('chat_id', GROUP_ID);
+    form.append('message_id', messageId);
+    form.append('media', JSON.stringify({
+      type: 'document',
+      media: 'attach://redacted',
+      caption: text,
+    }));
+    form.append('redacted', blob, 'dihapus.txt');
+
+    const res = await fetch(`${BASE}/editMessageMedia`, { method: 'POST', body: form });
+    const data = await res.json();
+    if (!data.ok) console.warn('[redactMessage] gagal:', data.description);
+    return data.ok;
+  } catch (err) {
+    console.warn('[redactMessage] error:', err.message);
+    return false;
+  }
+}
+
+/**
  * Hapus pesan (dan filenya) dari grup. Bot harus jadi admin grup dengan
- * izin "Delete Messages" agar ini berhasil.
+ * izin "Delete Messages" agar ini berhasil. Kalau ditolak Telegram (mis.
+ * pesan lebih dari 48 jam), fallback ke redactMessage supaya isi filenya
+ * tetap gak bisa diakses lagi walau pesannya gak bisa dihapus total.
  */
 async function deleteMessage(messageId) {
   try {
@@ -187,7 +223,10 @@ async function deleteMessage(messageId) {
       body: form,
     });
     const data = await res.json();
-    if (!data.ok) console.warn('[deleteMessage] gagal:', data.description);
+    if (!data.ok) {
+      console.warn('[deleteMessage] gagal:', data.description, '-- mencoba redact isi pesan sebagai fallback');
+      await redactMessage(messageId);
+    }
   } catch (err) {
     console.warn('[deleteMessage] error:', err.message);
   }

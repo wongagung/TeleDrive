@@ -231,6 +231,19 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .upload-btn { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
 .upload-btn:hover { background: var(--accent-hover); }
 
+.upload-menu-wrap { position: relative; }
+.upload-menu {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 20; min-width: 170px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-card); padding: 6px; display: flex; flex-direction: column; gap: 2px;
+  animation: modal-in .12s var(--ease);
+}
+.upload-menu-item {
+  display: flex; align-items: center; gap: 8px; padding: 9px 10px; border-radius: 6px;
+  color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.upload-menu-item:hover { background: var(--surface-hover); }
+
 .view-toggle { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
 .view-toggle button {
   padding: 8px 12px; background: var(--surface); border: none; color: var(--text-muted);

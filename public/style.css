@@ -205,7 +205,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .search-location { color: var(--text-faint); font-size: 12px; }
 
 /* --- Toolbar --- */
-.drive-wrap { max-width: 1080px; margin: 28px auto; padding: 0 16px; min-height: calc(100vh - 70px); padding-bottom: 48px; }
+.drive-wrap { max-width: 1440px; width: 100%; margin: 28px auto; padding: 0 28px; min-height: calc(100vh - 70px); padding-bottom: 48px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; gap: 10px; flex-wrap: wrap; }
 .breadcrumb { font-size: 13px; color: var(--text-muted); white-space: nowrap; }
 .breadcrumb span { cursor: pointer; color: var(--accent); }
@@ -321,14 +321,20 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
 
 /* Tabel admin: 5 kolom (Username, Terdaftar, Storage, Admin, Aksi) --
    punya set lebar sendiri, gak numpang ke aturan 4-kolom di atas. */
-#adminTable th:nth-child(1), #adminTable td:nth-child(1) { width: 20%; }
-#adminTable th:nth-child(2), #adminTable td:nth-child(2) { width: 14%; }
-#adminTable th:nth-child(3), #adminTable td:nth-child(3) { width: 28%; }
-#adminTable th:nth-child(4), #adminTable td:nth-child(4) { width: 10%; }
-#adminTable th:nth-child(5), #adminTable td:nth-child(5) { width: 28%; }
-#adminTable td { height: auto; min-height: var(--row-h); padding: 10px; }
-#adminTable .row-actions { display: flex; gap: 4px; justify-content: flex-end; flex-wrap: wrap; }
-#adminTable .row-actions button { font-size: 11px; padding: 5px 8px; white-space: nowrap; }
+#adminTable th:nth-child(1), #adminTable td:nth-child(1) { width: 18%; }
+#adminTable th:nth-child(2), #adminTable td:nth-child(2) { width: 13%; }
+#adminTable th:nth-child(3), #adminTable td:nth-child(3) { width: 25%; }
+#adminTable th:nth-child(4), #adminTable td:nth-child(4) { width: 9%; }
+#adminTable th:nth-child(5), #adminTable td:nth-child(5) { width: 35%; }
+#adminTable td { height: auto; min-height: var(--row-h); padding: 14px 10px; }
+#adminTable .row-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; align-items: center; }
+#adminTable .row-actions button {
+  font-size: 13px; font-weight: 600; padding: 9px 14px; white-space: nowrap;
+  border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface); color: var(--text);
+}
+#adminTable .row-actions button:hover { background: var(--surface-hover); border-color: var(--text-faint); }
+#adminTable .row-actions button[data-quota] { font-size: 15px; padding: 9px 12px; }
+#adminTable .row-actions button.danger-btn:hover { border-color: var(--danger); }
 
 .drive-table th {
   text-align: left; height: 40px; padding: 0 10px; color: var(--text-faint); font-weight: 600;

@@ -77,7 +77,7 @@ async function checkAndNotifyQuota(userId) {
     const urgency = highestReached >= 95 ? '🔴 Hampir penuh!' : '🟡 Perlu diperhatikan';
     await sendMessage(
       user.telegram_chat_id,
-      `${urgency} Storage Telegram Drive kamu sudah terpakai ${pct.toFixed(1)}% ` +
+      `${urgency} Storage VaultKu kamu sudah terpakai ${pct.toFixed(1)}% ` +
       `(${fmtMB(used)} / ${fmtMB(quota)}).\n\nHapus file lama, atau minta admin naikkan kuota kamu.`
     );
     db.prepare('UPDATE users SET quota_notified_pct = ? WHERE id = ?').run(highestReached, userId);

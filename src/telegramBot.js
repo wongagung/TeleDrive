@@ -37,7 +37,7 @@ async function handlePrivateMessage(message) {
     try {
       await sendMessage(
         chatId,
-        'Halo! Untuk menghubungkan akun Telegram Drive kamu, buka halaman web drive-nya, ' +
+        'Halo! Untuk menghubungkan akun VaultKu kamu, buka halaman web drive-nya, ' +
         'klik "🔗 Hubungkan Telegram", lalu kirim kode yang muncul ke sini.'
       );
     } catch (err) {
@@ -64,7 +64,7 @@ async function handlePrivateMessage(message) {
   try {
     await sendMessage(
       chatId,
-      `✅ Berhasil! Akun Telegram kamu sekarang terhubung ke Telegram Drive (${user ? user.username : ''}). ` +
+      `✅ Berhasil! Akun Telegram kamu sekarang terhubung ke VaultKu (${user ? user.username : ''}). ` +
       `Kamu akan dapat notifikasi DM dari sini kalau kuota penyimpanan hampir penuh.`
     );
   } catch (err) {

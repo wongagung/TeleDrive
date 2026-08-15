@@ -853,7 +853,7 @@ async function generateTelegramCode() {
   const data = await res.json();
   const botInfo = data.bot_username
     ? `<a href="https://t.me/${data.bot_username}" target="_blank" rel="noopener">@${escapeHtml(data.bot_username)}</a>`
-    : 'bot Telegram Drive kamu';
+    : 'bot VaultKu kamu';
 
   document.getElementById('tgCodeArea').innerHTML = `
     <p class="tg-code-label">Kirim pesan ini ke ${botInfo} dalam ${data.expires_in_minutes} menit:</p>

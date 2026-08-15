@@ -183,7 +183,7 @@ async function getLocalFilePath(fileId) {
  */
 async function redactMessage(messageId) {
   try {
-    const text = 'File ini sudah dihapus dari TeleDrive.';
+    const text = 'File ini sudah dihapus dari VaultKu.';
     const blob = new Blob([Buffer.from(text, 'utf8')], { type: 'text/plain' });
 
     const form = new FormData();

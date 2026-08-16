@@ -127,10 +127,20 @@ async function uploadChunk(localFilePath, displayName, threadId) {
     throw new Error(`Telegram sendDocument gagal: ${JSON.stringify(data)}`);
   }
 
-  const doc = data.result.document;
+  // Biasanya file yang dikirim lewat sendDocument balik di result.document,
+  // TAPI untuk beberapa video (mis. MP4 dari GoPro/action-cam), Telegram
+  // kadang malah nge-klasifikasi otomatis & balikinnya di result.video.
+  // Cek semua kemungkinan field, bukan asumsi selalu "document" doang --
+  // itu penyebab error "Cannot read properties of undefined (reading
+  // 'file_id')" yang muncul khusus buat file video tertentu.
+  const media = data.result.document || data.result.video || data.result.animation || data.result.audio;
+  if (!media) {
+    throw new Error(`Telegram sendDocument: respons tidak mengandung file (result: ${JSON.stringify(data.result)})`);
+  }
+
   return {
-    file_id: doc.file_id,
-    file_size: doc.file_size,
+    file_id: media.file_id,
+    file_size: media.file_size,
     message_id: data.result.message_id,
   };
 }

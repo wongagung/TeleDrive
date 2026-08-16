@@ -58,4 +58,40 @@ async function generateVideoThumbnail(localPath) {
   });
 }
 
-module.exports = { generateVideoThumbnail, checkFfmpegAvailable };
+/**
+ * Resize gambar lokal jadi JPEG kecil (buat thumbnail grid view) --
+ * sama kayak generateVideoThumbnail tapi tanpa perlu ambil frame video,
+ * ffmpeg juga bisa langsung proses file gambar biasa (jpg/png/webp/gif/dst).
+ * Best-effort: return null kalau gagal, upload tetap lanjut normal.
+ *
+ * @param {string} localPath - path gambar di disk lokal
+ * @returns {Promise<Buffer|null>}
+ */
+async function generateImageThumbnail(localPath) {
+  const available = await checkFfmpegAvailable();
+  if (!available) return null;
+
+  return new Promise((resolve) => {
+    const args = [
+      '-y',
+      '-hide_banner', '-loglevel', 'error',
+      '-i', localPath,
+      '-frames:v', '1', // kalau GIF/WEBP animasi, ambil frame pertama aja
+      '-vf', 'scale=320:-1',
+      '-f', 'image2pipe',
+      '-vcodec', 'mjpeg',
+      '-q:v', '5',
+      'pipe:1',
+    ];
+
+    execFile('ffmpeg', args, { timeout: 15000, maxBuffer: 10 * 1024 * 1024, encoding: 'buffer' }, (err, stdout) => {
+      if (err || !stdout || stdout.length === 0) {
+        console.warn('[imageThumbnail] gagal generate thumbnail:', err ? err.message : 'output kosong');
+        return resolve(null);
+      }
+      resolve(stdout);
+    });
+  });
+}
+
+module.exports = { generateVideoThumbnail, generateImageThumbnail, checkFfmpegAvailable };

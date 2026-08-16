@@ -1,8 +1,2 @@
 User-agent: *
-Allow: /
-
-Disallow: /dashboard
-Disallow: /api
-Disallow: /admin
-
-Sitemap: https://teledrives.duckdns.org/sitemap.xml
+Disallow: /

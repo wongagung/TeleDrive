@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const db = require('./db');
 const { uploadChunk, classifyCategory, getOrCreateTopic } = require('./telegram');
-const { generateVideoThumbnail } = require('./videoThumbnail');
+const { generateVideoThumbnail, generateImageThumbnail } = require('./videoThumbnail');
 
 const CHUNK_SIZE = (parseInt(process.env.CHUNK_SIZE_MB, 10) || 1900) * 1024 * 1024;
 
@@ -17,10 +17,13 @@ async function sendFileToTelegram({ localPath, originalName, totalSize, mimeType
   const category = classifyCategory(originalName, mimeType);
   const threadId = await getOrCreateTopic(category);
 
-  // Generate thumbnail video KONKUREN sama proses upload ke Telegram (bukan
-  // berurutan) supaya gak nambah waktu tunggu user. Best-effort: kalau gagal
-  // (ffmpeg gak ada / video corrupt), tetap null, upload tetap lanjut normal.
-  const thumbnailPromise = category === 'video' ? generateVideoThumbnail(localPath) : Promise.resolve(null);
+  // Generate thumbnail (video: ekstrak 1 frame, gambar: resize kecil)
+  // KONKUREN sama proses upload ke Telegram (bukan berurutan) supaya gak
+  // nambah waktu tunggu user. Best-effort: kalau gagal (ffmpeg gak ada /
+  // file corrupt), tetap null, upload tetap lanjut normal.
+  let thumbnailPromise = Promise.resolve(null);
+  if (category === 'video') thumbnailPromise = generateVideoThumbnail(localPath);
+  else if (category === 'gambar') thumbnailPromise = generateImageThumbnail(localPath);
 
   const chunks = [];
   const tempChunkPaths = [];

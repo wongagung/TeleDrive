@@ -10,10 +10,12 @@ const authLimiter = rateLimit({
 });
 
 // Upload: batasi jumlah request upload per IP (bukan mencegah file besar,
-// tapi mencegah spam banyak file kecil sekaligus untuk habiskan disk/kuota Telegram).
+// tapi mencegah spam banyak file kecil sekaligus untuk habiskan disk/kuota
+// Telegram). Limit-nya dilonggarin karena sekarang upload banyak file
+// sekaligus itu penggunaan NORMAL (tiap file pakai 1x /init + 1x /complete).
 const uploadLimiter = rateLimit({
   windowMs: 5 * 60 * 1000,
-  max: 30,
+  max: 150,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Terlalu banyak upload dalam waktu singkat. Coba lagi nanti.' },

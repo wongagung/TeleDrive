@@ -88,9 +88,12 @@
       </div>
     </div>
 
-    <div id="uploadProgress" class="upload-progress" hidden>
-      <div class="bar"><div id="uploadBar" class="bar-fill"></div></div>
-      <span id="uploadStatus"></span>
+    <div id="uploadProgress" class="upload-progress-card" hidden>
+      <div class="upload-progress-icon">⬆</div>
+      <div class="upload-progress-body">
+        <span id="uploadStatus" class="upload-progress-status"></span>
+        <div class="bar"><div id="uploadBar" class="bar-fill"></div></div>
+      </div>
     </div>
 
     <div id="searchResults" class="search-results" hidden>
@@ -137,6 +140,20 @@
     <div class="modal-box modal-move">
       <div class="modal-header"><span>🔗 Hubungkan Telegram</span><button id="telegramModalClose" class="modal-close">✕</button></div>
       <div id="telegramModalBody" class="telegram-link-body"></div>
+    </div>
+  </div>
+
+  <div id="duplicateModal" class="modal-overlay" hidden>
+    <div class="modal-box modal-move">
+      <div class="modal-header"><span>⚠ File Sudah Ada</span><button id="duplicateModalClose" class="modal-close">✕</button></div>
+      <div class="duplicate-body">
+        <p id="duplicateMsg"></p>
+        <div class="duplicate-actions">
+          <button id="dupOverwriteBtn" class="primary-btn">🔁 Timpa File Lama</button>
+          <button id="dupRenameBtn">✏️ Ganti Nama Otomatis</button>
+          <button id="dupSkipBtn">Lewati File Ini</button>
+        </div>
+      </div>
     </div>
   </div>
 

@@ -475,7 +475,11 @@ function renderGridView(data) {
     const isVideo = f.mime_type && f.mime_type.startsWith('video/');
     let thumbHtml;
     if (isImage) {
-      thumbHtml = `<img src="${previewUrl(f.id)}" alt="${escapeHtml(f.original_name)}" loading="lazy" />`;
+      // Pakai thumbnail kecil (dibikin server pas upload), BUKAN file
+      // aslinya -- grid isi puluhan foto jadi berat banget kalau tiap
+      // kartu narik file full-res. Foto lama (sebelum fitur ini ada)
+      // belum punya thumbnail; fallback ke file asli ditangani di onerror.
+      thumbHtml = `<img src="${thumbnailUrl(f.id)}" data-fallback="${previewUrl(f.id)}" alt="${escapeHtml(f.original_name)}" loading="lazy" />`;
     } else if (isVideo) {
       thumbHtml = `<img src="${thumbnailUrl(f.id)}" alt="${escapeHtml(f.original_name)}" loading="lazy" /><div class="play-badge">▶</div>`;
     } else {
@@ -499,6 +503,17 @@ function renderGridView(data) {
     const thumbImg = card.querySelector('.grid-card-thumb img');
     if (thumbImg) {
       thumbImg.onerror = () => {
+        const fallback = thumbImg.dataset.fallback;
+        if (fallback && thumbImg.src !== fallback) {
+          // Thumbnail gagal dimuat (mis. file lama belum punya thumbnail) --
+          // coba sekali lagi pakai file aslinya sebelum nyerah ke ikon.
+          thumbImg.onerror = () => {
+            thumbImg.remove();
+            card.querySelector('.grid-card-thumb').textContent = categoryIcon(f.category);
+          };
+          thumbImg.src = fallback;
+          return;
+        }
         if (isVideo) {
           thumbImg.remove();
           card.querySelector('.grid-card-thumb').insertAdjacentHTML('afterbegin', categoryIcon(f.category));
@@ -907,8 +922,8 @@ const progressStatus = document.getElementById('uploadStatus');
 async function uploadQueue(files) {
   const failed = [];
   for (let i = 0; i < files.length; i++) {
-    const ok = await resumableUpload(files[i], { index: i + 1, total: files.length });
-    if (!ok) failed.push(files[i].name);
+    const result = await resumableUpload(files[i], { index: i + 1, total: files.length });
+    if (result === 'failed') failed.push(files[i].name);
   }
   progressBox.hidden = true;
   loadList();
@@ -917,7 +932,50 @@ async function uploadQueue(files) {
   }
 }
 
-// ---------- Drag & drop upload ----------
+// ---------- File duplikat: tanya timpa / ganti nama / lewati ----------
+
+const duplicateModal = document.getElementById('duplicateModal');
+duplicateModal.onclick = (e) => { if (e.target === duplicateModal) resolveDuplicateChoice('skip'); };
+document.getElementById('duplicateModalClose').onclick = () => resolveDuplicateChoice('skip');
+document.getElementById('dupOverwriteBtn').onclick = () => resolveDuplicateChoice('overwrite');
+document.getElementById('dupRenameBtn').onclick = () => resolveDuplicateChoice('rename');
+document.getElementById('dupSkipBtn').onclick = () => resolveDuplicateChoice('skip');
+
+let duplicateResolver = null;
+function resolveDuplicateChoice(action) {
+  duplicateModal.hidden = true;
+  if (duplicateResolver) { duplicateResolver(action); duplicateResolver = null; }
+}
+
+/** Tampilkan modal & tunggu user pilih 'overwrite' | 'rename' | 'skip'. */
+function askDuplicateAction(existingFile, newFile) {
+  const sameSize = existingFile.size === newFile.size;
+  document.getElementById('duplicateMsg').textContent =
+    `File "${newFile.name}" sudah ada di folder ini` +
+    (sameSize
+      ? ` dengan ukuran yang sama (${fmtSize(newFile.size)}) -- kemungkinan file yang sama persis.`
+      : ` (file lama: ${fmtSize(existingFile.size)}, file baru: ${fmtSize(newFile.size)}).`) +
+    ' Mau diapain?';
+  duplicateModal.hidden = false;
+  return new Promise((resolve) => { duplicateResolver = resolve; });
+}
+
+/** Cari nama yang belum kepakai di folder ini dengan nambahin " (1)", " (2)", dst. */
+async function resolveUniqueName(originalName, folderId) {
+  const dotIdx = originalName.lastIndexOf('.');
+  const base = dotIdx > 0 ? originalName.slice(0, dotIdx) : originalName;
+  const ext = dotIdx > 0 ? originalName.slice(dotIdx) : '';
+
+  for (let i = 1; i <= 50; i++) {
+    const candidate = `${base} (${i})${ext}`;
+    const res = await api(`/api/drive/check-duplicate?filename=${encodeURIComponent(candidate)}&folder_id=${folderId ?? ''}`);
+    if (res && res.ok) {
+      const data = await res.json();
+      if (!data.duplicate) return candidate;
+    }
+  }
+  return `${base} (${Date.now()})${ext}`; // fallback super jarang kepakai
+}
 // Drop file dari luar (file manager / desktop) ke mana pun di halaman ini
 // langsung upload ke folder yang lagi dibuka. Pakai counter buat
 // dragenter/dragleave supaya overlay gak kedip-kedip pas mouse lewat di
@@ -966,6 +1024,7 @@ async function resumableUpload(file, queueInfo) {
   progressBar.style.width = '0%';
 
   const resumeKey = `td_resume_${file.name}_${file.size}_${currentFolder || 'root'}`;
+  let uploadName = file.name; // bisa berubah kalau user pilih "Ganti Nama Otomatis"
 
   try {
     let uploadId, blockSize, totalBlocks, alreadyReceived = new Set();
@@ -986,11 +1045,33 @@ async function resumableUpload(file, queueInfo) {
     }
 
     if (!uploadId) {
+      // Sesi baru (bukan resume) -- cek dulu apakah nama ini udah dipakai
+      // file lain di folder yang sama, SEBELUM mulai kirim data beneran.
+      const dupRes = await api(`/api/drive/check-duplicate?filename=${encodeURIComponent(file.name)}&folder_id=${currentFolder ?? ''}`);
+      if (dupRes && dupRes.ok) {
+        const dup = await dupRes.json();
+        if (dup.duplicate) {
+          const action = await askDuplicateAction(dup.file, file);
+          if (action === 'skip') {
+            progressStatus.textContent = `${prefix}Dilewati: "${file.name}" (sudah ada).`;
+            await new Promise((r) => setTimeout(r, 800));
+            return 'skipped';
+          }
+          if (action === 'overwrite') {
+            progressStatus.textContent = `${prefix}Menghapus file lama...`;
+            await api(`/api/drive/files/${dup.file.id}`, { method: 'DELETE' });
+          } else if (action === 'rename') {
+            progressStatus.textContent = `${prefix}Mencari nama yang belum kepakai...`;
+            uploadName = await resolveUniqueName(file.name, currentFolder);
+          }
+        }
+      }
+
       const initRes = await api('/api/drive/upload/init', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          filename: file.name,
+          filename: uploadName,
           size: file.size,
           mime_type: file.type || 'application/octet-stream',
           folder_id: currentFolder,
@@ -1035,19 +1116,19 @@ async function resumableUpload(file, queueInfo) {
 
       const pct = Math.round(((i + 1) / totalBlocks) * 100);
       progressBar.style.width = pct + '%';
-      progressStatus.textContent = `${prefix}Mengunggah "${file.name}" — ${pct}% (${i + 1}/${totalBlocks} bagian)`;
+      progressStatus.textContent = `${prefix}Mengunggah "${uploadName}" — ${pct}% (${i + 1}/${totalBlocks} bagian)`;
     }
 
-    progressStatus.textContent = `${prefix}Mengirim "${file.name}" ke Telegram...`;
+    progressStatus.textContent = `${prefix}Mengirim "${uploadName}" ke Telegram...`;
     const completeRes = await api(`/api/drive/upload/${uploadId}/complete`, { method: 'POST' });
     if (!completeRes.ok) throw new Error((await completeRes.json()).error || 'Gagal menyelesaikan upload');
 
     localStorage.removeItem(resumeKey);
-    return true;
+    return 'ok';
   } catch (err) {
-    progressStatus.textContent = `${prefix}Gagal: "${file.name}" — ${err.message}`;
+    progressStatus.textContent = `${prefix}Gagal: "${uploadName}" — ${err.message}`;
     await new Promise((r) => setTimeout(r, 1500));
-    return false;
+    return 'failed';
   }
 }
 

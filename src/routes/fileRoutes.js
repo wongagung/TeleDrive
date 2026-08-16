@@ -155,6 +155,26 @@ router.get('/list', (req, res) => {
   });
 });
 
+// ---------- Cek nama file bentrok sebelum upload ----------
+// Dipanggil frontend SEBELUM /upload/init, supaya user bisa milih
+// timpa/ganti-nama/batal dulu -- bukan nge-block setelah upload penuh
+// selesai (buang-buang bandwidth kalau ternyata mau dibatalin).
+router.get('/check-duplicate', (req, res) => {
+  const { filename } = req.query;
+  if (!filename) return res.status(400).json({ error: 'filename wajib diisi' });
+
+  const folderId = req.query.folder_id ? parseInt(req.query.folder_id, 10) : null;
+
+  const existing = db
+    .prepare(
+      'SELECT id, original_name, size, created_at FROM files WHERE user_id = ? AND (folder_id IS ? OR folder_id = ?) AND original_name = ?'
+    )
+    .get(req.user.id, folderId, folderId, filename);
+
+  if (!existing) return res.json({ duplicate: false });
+  res.json({ duplicate: true, file: existing });
+});
+
 // ---------- Pencarian nama file (full-text, FTS5) ----------
 
 /** Bangun query FTS5 yang aman dari input user: tiap kata dikutip literal

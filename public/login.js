@@ -1,6 +1,8 @@
 let mode = 'login';
+let registerMethod = 'email';
 let turnstileToken = '';
 let pendingRegisterUsername = '';
+let botUsername = '';
 
 const tabLogin = document.getElementById('tabLogin');
 const tabRegister = document.getElementById('tabRegister');
@@ -8,6 +10,19 @@ const submitBtn = document.getElementById('submitBtn');
 const msg = document.getElementById('msg');
 const authForm = document.getElementById('authForm');
 const emailInput = document.getElementById('email');
+const registerMethodToggle = document.getElementById('registerMethodToggle');
+const telegramRegisterFields = document.getElementById('telegramRegisterFields');
+const telegramRegisterCode = document.getElementById('telegramRegisterCode');
+const openBotLink = document.getElementById('openBotLink');
+
+// Ambil username bot sekali di awal -- dipakai buat link "Buka Bot Telegram".
+fetch('/api/auth/telegram/bot-info')
+  .then((r) => r.json())
+  .then((data) => {
+    botUsername = data.bot_username || '';
+    if (botUsername) openBotLink.href = `https://t.me/${botUsername}?start=daftar`;
+  })
+  .catch(() => {});
 
 window.onTurnstileSuccess = (token) => {
   turnstileToken = token;
@@ -23,15 +38,34 @@ window.onTurnstileError = () => {
   msg.textContent = 'CAPTCHA gagal dimuat. Periksa koneksi lalu coba lagi.';
 };
 
+function applyRegisterMethod() {
+  document.querySelectorAll('.method-btn').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.method === registerMethod);
+  });
+  const isTelegram = registerMethod === 'telegram';
+  emailInput.hidden = !(mode === 'register' && !isTelegram);
+  emailInput.required = mode === 'register' && !isTelegram;
+  telegramRegisterFields.hidden = !(mode === 'register' && isTelegram);
+  telegramRegisterCode.required = mode === 'register' && isTelegram;
+}
+
+document.querySelectorAll('.method-btn').forEach((btn) => {
+  btn.onclick = () => {
+    registerMethod = btn.dataset.method;
+    applyRegisterMethod();
+  };
+});
+
 function setMode(nextMode) {
   mode = nextMode;
+  registerMethod = 'email';
   tabLogin.classList.toggle('active', mode === 'login');
   tabRegister.classList.toggle('active', mode === 'register');
   submitBtn.textContent = mode === 'login' ? 'Masuk' : 'Daftar';
   document.getElementById('password').autocomplete =
     mode === 'login' ? 'current-password' : 'new-password';
-  emailInput.hidden = mode !== 'register';
-  emailInput.required = mode === 'register';
+  registerMethodToggle.hidden = mode !== 'register';
+  applyRegisterMethod();
   msg.textContent = '';
   msg.style.color = '';
   turnstileToken = '';
@@ -76,8 +110,27 @@ authForm.onsubmit = async (e) => {
       return;
     }
 
-    // mode === 'register' -- kirim kode verifikasi ke email dulu, akun
-    // BELUM kebuat sampai kode itu dikonfirmasi di langkah berikutnya.
+    if (mode === 'register' && registerMethod === 'telegram') {
+      // Daftar lewat Telegram -- kode SUDAH didapat dari bot, akun langsung
+      // jadi & otomatis login, gak ada langkah verifikasi terpisah lagi.
+      const code = telegramRegisterCode.value.trim();
+      const res = await fetch('/api/auth/register/telegram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, code, turnstile_token: turnstileToken }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal');
+
+      localStorage.setItem('td_token', data.token);
+      localStorage.setItem('td_refresh_token', data.refresh_token);
+      localStorage.setItem('td_username', data.username);
+      window.location.href = '/';
+      return;
+    }
+
+    // mode === 'register' via email -- kirim kode verifikasi ke email dulu,
+    // akun BELUM kebuat sampai kode itu dikonfirmasi di langkah berikutnya.
     const res = await fetch('/api/auth/register/request', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

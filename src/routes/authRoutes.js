@@ -13,7 +13,7 @@ const {
   revokeRefreshToken,
   revokeAllRefreshTokensForUser,
 } = require('../tokenUtils');
-const { createLinkCode, sendPasswordResetCode, consumeResetCode } = require('../telegramBot');
+const { createLinkCode, sendPasswordResetCode, consumeResetCode, consumeRegisterCode } = require('../telegramBot');
 const { getBotUsername } = require('../telegram');
 const { sendEmail, verificationEmailHtml } = require('../email');
 
@@ -131,6 +131,54 @@ router.post('/login', authLimiter, requireTurnstile, (req, res) => {
   res.json(issueTokenPair({ id: user.id, username: user.username }));
 });
 
+// ---------- Daftar lewat Telegram (alternatif email) ----------
+// User chat ke bot dulu (/daftar atau link t.me/<bot>?start=daftar),
+// dapat kode, lalu masukkan kode itu di sini bareng username/password.
+// Akun langsung jadi DAN otomatis "terhubung" ke Telegram (chat_id-nya
+// udah ketahuan dari kode ini) -- gak perlu langkah hubungkan terpisah.
+router.post('/register/telegram', authLimiter, requireTurnstile, (req, res) => {
+  if (process.env.DISABLE_REGISTRATION === 'true') {
+    return res.status(403).json({ error: 'Registrasi ditutup' });
+  }
+
+  const { username, password, code } = req.body;
+
+  if (!username || !USERNAME_RE.test(username)) {
+    return res.status(400).json({
+      error: 'Username 3-32 karakter, hanya huruf/angka/titik/underscore/strip',
+    });
+  }
+  if (!password || password.length < 8 || password.length > 200) {
+    return res.status(400).json({ error: 'Password minimal 8 karakter' });
+  }
+  if (!code) {
+    return res.status(400).json({ error: 'Kode dari Telegram wajib diisi' });
+  }
+
+  const usernameTaken = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
+  if (usernameTaken) return res.status(409).json({ error: 'Username sudah dipakai' });
+
+  const regCode = consumeRegisterCode(String(code).trim());
+  if (!regCode) return res.status(400).json({ error: 'Kode salah, sudah dipakai, atau kadaluarsa' });
+
+  const chatIdTaken = db.prepare('SELECT id FROM users WHERE telegram_chat_id = ?').get(regCode.chat_id);
+  if (chatIdTaken) {
+    return res.status(409).json({ error: 'Akun Telegram ini sudah terhubung ke akun VaultKu lain' });
+  }
+
+  const hash = bcrypt.hashSync(password, 12);
+  const info = db
+    .prepare('INSERT INTO users (username, password_hash, telegram_chat_id, email_verified) VALUES (?, ?, ?, 1)')
+    .run(username, hash, regCode.chat_id);
+
+  const userCount = db.prepare('SELECT COUNT(*) AS c FROM users').get().c;
+  if (userCount === 1) {
+    db.prepare('UPDATE users SET is_admin = 1 WHERE id = ?').run(info.lastInsertRowid);
+  }
+
+  res.json(issueTokenPair({ id: info.lastInsertRowid, username }));
+});
+
 router.post('/refresh', authLimiter, (req, res) => {
   const { refresh_token } = req.body;
   if (!refresh_token) return res.status(400).json({ error: 'refresh_token wajib diisi' });
@@ -174,6 +222,14 @@ router.post('/telegram/link-code', requireAuth, authLimiter, async (req, res) =>
   const { code, expiresInMinutes } = createLinkCode(req.user.id);
   const botUsername = await getBotUsername();
   res.json({ code, expires_in_minutes: expiresInMinutes, bot_username: botUsername });
+});
+
+// Publik (gak perlu login) -- dipakai halaman login buat bikin link
+// "Buka Bot Telegram" pas jalur "Daftar lewat Telegram". Username bot
+// bukan info rahasia (siapapun bisa liat begitu chat ke bot-nya).
+router.get('/telegram/bot-info', async (req, res) => {
+  const botUsername = await getBotUsername();
+  res.json({ bot_username: botUsername });
 });
 
 router.delete('/telegram/link', requireAuth, (req, res) => {

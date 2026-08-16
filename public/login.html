@@ -26,6 +26,12 @@
 .forgot-hint{font-size:12.5px;color:var(--text-muted);line-height:1.5;margin:0 0 16px;text-align:center}
 .step-label{font-size:15px;font-weight:700;text-align:center;margin:0 0 10px;color:var(--text)}
 #forgotWrap #forgotStep2{margin-top:14px}
+.method-toggle{display:flex;gap:6px;padding:3px;border-radius:8px;background:var(--bg);border:1px solid var(--border)}
+.method-btn{flex:1;padding:8px;border:none;border-radius:6px;background:transparent;color:var(--text-muted);font-size:12.5px;font-weight:600;cursor:pointer}
+.method-btn.active{background:var(--accent);color:var(--accent-text)}
+.tg-open-bot-btn{display:block;width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--accent);font-size:13px;font-weight:600;text-align:center;text-decoration:none;margin-bottom:9px}
+.tg-open-bot-btn:hover{background:var(--surface-hover)}
+#telegramRegisterFields{display:flex;flex-direction:column}
 @media(max-width:520px){.auth-wrap{padding:20px 12px}.auth-card{width:min(100%,440px);padding:30px 20px}}
 @media(max-width:360px){.auth-card{width:100%;padding-left:14px;padding-right:14px}.cf-turnstile{transform:scale(.92);transform-origin:center;width:276px;min-width:276px}}
 </style>
@@ -40,7 +46,19 @@
 </div>
 <form id="authForm">
 <input type="text" id="username" placeholder="Username" required autocomplete="username" />
+
+<div id="registerMethodToggle" class="method-toggle" hidden>
+  <button type="button" class="method-btn active" data-method="email">📧 Email</button>
+  <button type="button" class="method-btn" data-method="telegram">✈️ Telegram</button>
+</div>
+
 <input type="email" id="email" placeholder="Email" autocomplete="email" hidden />
+
+<div id="telegramRegisterFields" hidden>
+  <a href="#" id="openBotLink" target="_blank" rel="noopener" class="tg-open-bot-btn">✈️ Buka Bot &amp; Dapatkan Kode</a>
+  <input type="text" id="telegramRegisterCode" placeholder="Kode 6 digit dari Telegram" maxlength="6" inputmode="numeric" autocomplete="one-time-code" />
+</div>
+
 <input type="password" id="password" placeholder="Password" required autocomplete="current-password" />
 <div class="captcha-wrap">
 <div class="cf-turnstile"

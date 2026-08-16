@@ -55,9 +55,51 @@ function consumeResetCode(code, userId) {
   return row;
 }
 
+const REGISTER_CODE_TTL_MINUTES = 15;
+
+/** Generate kode daftar-akun-baru terikat ke chat_id ini (bukan ke user,
+ * soalnya usernya belum ada sama sekali). Dipakai buat jalur "Daftar
+ * lewat Telegram" -- alternatif email, sekaligus otomatis "menghubungkan"
+ * Telegram begitu akunnya jadi. */
+async function sendRegisterCode(chatId) {
+  db.prepare('DELETE FROM telegram_register_codes WHERE chat_id = ?').run(chatId);
+
+  const code = String(crypto.randomInt(100000, 999999));
+  const expiresAt = new Date(Date.now() + REGISTER_CODE_TTL_MINUTES * 60 * 1000).toISOString();
+  db.prepare('INSERT INTO telegram_register_codes (code, chat_id, expires_at) VALUES (?, ?, ?)').run(code, chatId, expiresAt);
+
+  await sendMessage(
+    chatId,
+    `👋 Kode daftar akun VaultKu kamu: ${code}\n\n` +
+    `Buka halaman web VaultKu, pilih "Daftar lewat Telegram", lalu masukkan kode ini. ` +
+    `Berlaku ${REGISTER_CODE_TTL_MINUTES} menit.`
+  );
+}
+
+function consumeRegisterCode(code) {
+  const row = db
+    .prepare("SELECT * FROM telegram_register_codes WHERE code = ? AND expires_at > datetime('now')")
+    .get(code);
+  if (!row) return null;
+  db.prepare('DELETE FROM telegram_register_codes WHERE code = ?').run(code);
+  return row;
+}
+
 async function handlePrivateMessage(message) {
   const text = (message.text || '').trim();
   const chatId = message.chat.id;
+
+  // Jalur daftar akun baru -- /daftar langsung, ATAU lewat deep link
+  // https://t.me/<bot>?start=daftar (Telegram otomatis kirim ini sebagai
+  // pesan "/start daftar" begitu link-nya diklik).
+  if (/^\/daftar$/i.test(text) || /^\/start\s+daftar$/i.test(text)) {
+    try {
+      await sendRegisterCode(chatId);
+    } catch (err) {
+      console.warn('[telegramBot] gagal kirim kode daftar:', err.message);
+    }
+    return;
+  }
 
   const match = /^\/start\s+([A-Za-z0-9]+)$/.exec(text) || /^\/link\s+([A-Za-z0-9]+)$/.exec(text);
 
@@ -67,7 +109,9 @@ async function handlePrivateMessage(message) {
     try {
       await sendMessage(
         chatId,
-        'Halo! Untuk menghubungkan akun VaultKu kamu, buka halaman web drive-nya, ' +
+        'Halo! 👋\n\n' +
+        '• Belum punya akun VaultKu? Ketik /daftar buat dapat kode pendaftaran.\n' +
+        '• Sudah punya akun dan mau hubungkan Telegram? Buka halaman web drive-nya, ' +
         'klik "🔗 Hubungkan Telegram", lalu kirim kode yang muncul ke sini.'
       );
     } catch (err) {
@@ -133,4 +177,12 @@ function stopPolling() {
   polling = false;
 }
 
-module.exports = { createLinkCode, sendPasswordResetCode, consumeResetCode, startPolling, stopPolling };
+module.exports = {
+  createLinkCode,
+  sendPasswordResetCode,
+  consumeResetCode,
+  sendRegisterCode,
+  consumeRegisterCode,
+  startPolling,
+  stopPolling,
+};

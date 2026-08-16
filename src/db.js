@@ -127,6 +127,19 @@ CREATE TABLE IF NOT EXISTS pending_registrations (
 );
 CREATE INDEX IF NOT EXISTS idx_pending_reg_expires ON pending_registrations(expires_at);
 
+-- Kode buat daftar akun baru LEWAT TELEGRAM (alternatif dari email, buat
+-- jaga-jaga kalau pengiriman email lagi bermasalah/diblokir provider
+-- macam Gmail). User chat duluan ke bot, bot generate kode ini terikat
+-- ke chat_id dia -- jadi begitu akun dibuat, otomatis udah "terhubung"
+-- ke Telegram, gak perlu langkah "Hubungkan Telegram" terpisah lagi.
+CREATE TABLE IF NOT EXISTS telegram_register_codes (
+  code TEXT PRIMARY KEY,
+  chat_id INTEGER NOT NULL,
+  created_at TEXT DEFAULT (datetime('now')),
+  expires_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_tg_reg_codes_expires ON telegram_register_codes(expires_at);
+
 -- Index full-text buat pencarian nama file. External-content FTS5: data
 -- aslinya tetap di tabel files, FTS5 cuma nyimpen index tokennya supaya
 -- hemat storage & otomatis sinkron lewat trigger di bawah.

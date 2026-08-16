@@ -5,7 +5,7 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY;
 // kamu sendiri doang). Buat kirim ke SEMBARANG alamat email user, wajib
 // pakai domain yang sudah diverifikasi di dashboard Resend, lalu isi
 // EMAIL_FROM pakai alamat di domain itu, mis. "VaultKu <no-reply@domainkamu.com>".
-const EMAIL_FROM = process.env.EMAIL_FROM || 'VaultKu <onboarding@resend.dev>';
+const EMAIL_FROM = process.env.EMAIL_FROM || 'no-reply@teledrives.de5.net>';
 
 /**
  * Kirim email lewat Resend API. Return true/false (gak throw), supaya

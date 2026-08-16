@@ -136,6 +136,22 @@ function fmtSize(bytes) {
   return bytes.toFixed(1) + ' ' + units[i];
 }
 
+function formatSpeed(bytesPerSec) {
+  if (bytesPerSec < 1024) return bytesPerSec.toFixed(0) + ' B/s';
+  if (bytesPerSec < 1024 * 1024) return (bytesPerSec / 1024).toFixed(0) + ' KB/s';
+  return (bytesPerSec / 1024 / 1024).toFixed(1) + ' MB/s';
+}
+
+function formatEta(seconds) {
+  if (!isFinite(seconds) || seconds < 0) return '';
+  if (seconds < 60) return Math.ceil(seconds) + ' detik';
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  if (m < 60) return `${m}m ${s}d`;
+  const h = Math.floor(m / 60);
+  return `${h}j ${m % 60}m`;
+}
+
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
@@ -912,20 +928,71 @@ document.addEventListener('click', (e) => {
 });
 
 const progressBox = document.getElementById('uploadProgress');
-const progressBar = document.getElementById('uploadBar');
-const progressStatus = document.getElementById('uploadStatus');
+const uploadQueueList = document.getElementById('uploadQueueList');
+
+/** Bikin satu kartu row di panel upload buat 1 file, return referensi ke
+ * elemen-elemen di dalamnya biar resumableUpload() bisa update langsung
+ * row ini aja (bukan elemen tunggal global kayak sebelumnya). */
+function createUploadRow(file) {
+  const root = document.createElement('div');
+  root.className = 'upload-row state-queued';
+  root.innerHTML = `
+    <div class="upload-row-icon">⋯</div>
+    <div class="upload-row-body">
+      <div class="upload-row-top">
+        <span class="upload-row-name">${escapeHtml(file.name)}</span>
+        <span class="upload-row-pct"></span>
+      </div>
+      <div class="bar"><div class="bar-fill" style="width:0%"></div></div>
+      <span class="upload-row-speed"></span>
+    </div>
+  `;
+  uploadQueueList.appendChild(root);
+  progressBox.hidden = false;
+
+  return {
+    root,
+    icon: root.querySelector('.upload-row-icon'),
+    name: root.querySelector('.upload-row-name'),
+    pct: root.querySelector('.upload-row-pct'),
+    bar: root.querySelector('.bar-fill'),
+    speed: root.querySelector('.upload-row-speed'),
+    setState(state) {
+      root.className = `upload-row state-${state}`;
+    },
+    setProgress(pct) {
+      this.bar.style.width = pct + '%';
+      this.pct.textContent = pct + '%';
+    },
+  };
+}
+
+/** Hapus row dengan animasi fade-out halus, bukan langsung ilang. */
+function removeUploadRow(row, delayMs) {
+  setTimeout(() => {
+    row.root.classList.add('removing');
+    setTimeout(() => {
+      row.root.remove();
+      if (!uploadQueueList.children.length) progressBox.hidden = true;
+    }, 260);
+  }, delayMs);
+}
 
 /** Upload banyak file sekaligus, SATU PER SATU (bukan paralel) --
- * lebih aman buat koneksi & kuota server, dan progress bar-nya jelas per
- * file. Kalau satu file gagal, lanjut ke file berikutnya (gak ngeblok
- * semuanya), lalu tampilkan ringkasan di akhir. */
+ * lebih aman buat koneksi & kuota server. Semua file langsung ditampilin
+ * sebagai kartu di panel (status "Menunggu giliran..."), lalu tiap kartu
+ * berubah status seiring gilirannya diproses -- bukan cuma 1 kartu yang
+ * gonta-ganti isi kayak sebelumnya. Kalau satu file gagal, lanjut ke file
+ * berikutnya (gak ngeblok semuanya), lalu tampilkan ringkasan di akhir. */
 async function uploadQueue(files) {
   const failed = [];
+  const rows = files.map((file) => createUploadRow(file));
+
   for (let i = 0; i < files.length; i++) {
-    const result = await resumableUpload(files[i], { index: i + 1, total: files.length });
+    const result = await resumableUpload(files[i], rows[i]);
     if (result === 'failed') failed.push(files[i].name);
   }
-  progressBox.hidden = true;
+
   loadList();
   if (failed.length) {
     alert(`${failed.length} dari ${files.length} file gagal diupload:\n${failed.join('\n')}`);
@@ -1017,11 +1084,11 @@ window.addEventListener('drop', async (e) => {
   if (files.length) await uploadQueue(files);
 });
 
-async function resumableUpload(file, queueInfo) {
-  const prefix = queueInfo ? `[${queueInfo.index}/${queueInfo.total}] ` : '';
-  progressBox.hidden = false;
-  progressStatus.textContent = `${prefix}Menyiapkan "${file.name}"...`;
-  progressBar.style.width = '0%';
+async function resumableUpload(file, row) {
+  row.setState('uploading');
+  row.icon.textContent = '⬆';
+  row.name.textContent = file.name;
+  row.setProgress(0);
 
   const resumeKey = `td_resume_${file.name}_${file.size}_${currentFolder || 'root'}`;
   let uploadName = file.name; // bisa berubah kalau user pilih "Ganti Nama Otomatis"
@@ -1038,7 +1105,7 @@ async function resumableUpload(file, queueInfo) {
         totalBlocks = status.total_blocks;
         alreadyReceived = new Set(status.received_blocks);
         blockSize = Math.ceil(file.size / totalBlocks);
-        progressStatus.textContent = `${prefix}Melanjutkan upload "${file.name}" (${alreadyReceived.size}/${totalBlocks} bagian sudah terkirim)...`;
+        row.speed.textContent = `Melanjutkan (${alreadyReceived.size}/${totalBlocks} bagian sudah terkirim)...`;
       } else {
         localStorage.removeItem(resumeKey);
       }
@@ -1053,16 +1120,18 @@ async function resumableUpload(file, queueInfo) {
         if (dup.duplicate) {
           const action = await askDuplicateAction(dup.file, file);
           if (action === 'skip') {
-            progressStatus.textContent = `${prefix}Dilewati: "${file.name}" (sudah ada).`;
-            await new Promise((r) => setTimeout(r, 800));
+            row.setState('skipped');
+            row.speed.textContent = 'Dilewati (sudah ada)';
+            removeUploadRow(row, 2000);
             return 'skipped';
           }
           if (action === 'overwrite') {
-            progressStatus.textContent = `${prefix}Menghapus file lama...`;
+            row.speed.textContent = 'Menghapus file lama...';
             await api(`/api/drive/files/${dup.file.id}`, { method: 'DELETE' });
           } else if (action === 'rename') {
-            progressStatus.textContent = `${prefix}Mencari nama yang belum kepakai...`;
+            row.speed.textContent = 'Mencari nama yang belum kepakai...';
             uploadName = await resolveUniqueName(file.name, currentFolder);
+            row.name.textContent = uploadName;
           }
         }
       }
@@ -1085,16 +1154,18 @@ async function resumableUpload(file, queueInfo) {
       localStorage.setItem(resumeKey, uploadId);
     }
 
+    let speedSamples = []; // rata-rata beberapa block terakhir biar angka speed gak lompat-lompat
+
     for (let i = 0; i < totalBlocks; i++) {
       if (alreadyReceived.has(i)) {
-        const pct = Math.round(((i + 1) / totalBlocks) * 100);
-        progressBar.style.width = pct + '%';
+        row.setProgress(Math.round(((i + 1) / totalBlocks) * 100));
         continue;
       }
 
       const start = i * blockSize;
       const end = Math.min(start + blockSize, file.size);
       const blob = file.slice(start, end);
+      const blockStartTime = performance.now();
 
       let attempt = 0;
       while (true) {
@@ -1109,25 +1180,40 @@ async function resumableUpload(file, queueInfo) {
           break;
         } catch (err) {
           if (attempt >= 3) throw err;
-          progressStatus.textContent = `${prefix}Block ${i + 1}/${totalBlocks} gagal, mencoba lagi (${attempt}/3)...`;
+          row.speed.textContent = `Block ${i + 1}/${totalBlocks} gagal, mencoba lagi (${attempt}/3)...`;
           await new Promise((r) => setTimeout(r, 1000 * attempt));
         }
       }
 
-      const pct = Math.round(((i + 1) / totalBlocks) * 100);
-      progressBar.style.width = pct + '%';
-      progressStatus.textContent = `${prefix}Mengunggah "${uploadName}" — ${pct}% (${i + 1}/${totalBlocks} bagian)`;
+      const elapsedSec = (performance.now() - blockStartTime) / 1000;
+      const instantSpeed = elapsedSec > 0 ? blob.size / elapsedSec : 0;
+      speedSamples.push(instantSpeed);
+      if (speedSamples.length > 5) speedSamples.shift();
+      const avgSpeed = speedSamples.reduce((a, b) => a + b, 0) / speedSamples.length;
+
+      const remainingBytes = file.size - end;
+      const etaSec = avgSpeed > 0 ? remainingBytes / avgSpeed : Infinity;
+
+      row.setProgress(Math.round(((i + 1) / totalBlocks) * 100));
+      row.speed.textContent =
+        `⚡ ${formatSpeed(avgSpeed)}` + (isFinite(etaSec) ? ` · sisa ${formatEta(etaSec)}` : '');
     }
 
-    progressStatus.textContent = `${prefix}Mengirim "${uploadName}" ke Telegram...`;
+    row.speed.textContent = 'Mengirim ke Telegram...';
     const completeRes = await api(`/api/drive/upload/${uploadId}/complete`, { method: 'POST' });
     if (!completeRes.ok) throw new Error((await completeRes.json()).error || 'Gagal menyelesaikan upload');
 
     localStorage.removeItem(resumeKey);
+    row.setState('done');
+    row.icon.textContent = '✓';
+    row.speed.textContent = 'Selesai';
+    removeUploadRow(row, 1500);
     return 'ok';
   } catch (err) {
-    progressStatus.textContent = `${prefix}Gagal: "${uploadName}" — ${err.message}`;
-    await new Promise((r) => setTimeout(r, 1500));
+    row.setState('failed');
+    row.icon.textContent = '✕';
+    row.speed.textContent = err.message;
+    removeUploadRow(row, 4000);
     return 'failed';
   }
 }

@@ -303,35 +303,22 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .danger-btn { background: var(--danger-dim) !important; color: #ff9b9a !important; }
 html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
 
-/* --- Upload progress --- */
-.upload-progress-card {
-  display: flex; align-items: center; gap: 14px;
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
-  padding: 14px 18px; margin-bottom: 16px; box-shadow: var(--shadow-soft);
-  animation: upload-card-in .2s var(--ease);
-}
-@keyframes upload-card-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
-.upload-progress-icon {
-  flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%;
-  background: var(--accent-dim); color: var(--accent); font-size: 17px; font-weight: 800;
-  display: flex; align-items: center; justify-content: center;
-  animation: upload-icon-bounce 1.1s ease-in-out infinite;
-}
+/* --- Upload progress (list, satu kartu per file) --- */
+.upload-queue-panel { margin-bottom: 16px; }
+.upload-queue-list { display: flex; flex-direction: column; gap: 8px; }
+
 @keyframes upload-icon-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
-.upload-progress-body { flex: 1; min-width: 0; }
-.upload-progress-status {
-  display: block; font-size: 12.5px; color: var(--text-muted); margin-bottom: 7px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
+
 .bar { height: 8px; background: var(--bg); border-radius: 5px; overflow: hidden; }
 .bar-fill {
   height: 100%; border-radius: 5px; position: relative; overflow: hidden;
   background: var(--accent);
   transition: width .3s var(--ease);
 }
-/* Efek shimmer/stripe bergerak di dalam bar -- kasih kesan "lagi jalan"
-   walau progress-nya kebetulan diam sesaat (mis. lagi retry block gagal). */
-.bar-fill::after {
+/* Efek shimmer/stripe bergerak di dalam bar upload -- kasih kesan "lagi
+   jalan" walau progress-nya kebetulan diam sesaat (mis. lagi retry block
+   gagal). Di-scope ke .upload-row aja, quota bar di topbar gak perlu ini. */
+.upload-row .bar-fill::after {
   content: ''; position: absolute; inset: 0;
   background: linear-gradient(90deg,
     transparent, rgba(255,255,255,.35) 45%, rgba(255,255,255,.35) 55%, transparent);
@@ -339,6 +326,51 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
   animation: upload-shimmer 1.1s linear infinite;
 }
 @keyframes upload-shimmer { from { background-position: -60px 0; } to { background-position: 200px 0; } }
+
+.upload-row {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: 12px 16px; box-shadow: var(--shadow-soft);
+  animation: upload-row-in .22s var(--ease);
+  transition: opacity .25s var(--ease), transform .25s var(--ease), max-height .25s var(--ease),
+    margin .25s var(--ease), padding .25s var(--ease), border-color .25s var(--ease);
+  max-height: 80px; overflow: hidden;
+}
+@keyframes upload-row-in { from { opacity: 0; transform: translateY(-6px) scale(.98); } to { opacity: 1; transform: none; } }
+.upload-row.removing {
+  opacity: 0; transform: translateY(-4px) scale(.98); max-height: 0;
+  margin: 0; padding-top: 0; padding-bottom: 0; border-width: 0;
+}
+
+.upload-row-icon {
+  flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%;
+  background: var(--accent-dim); color: var(--accent); font-size: 15px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center; transition: background-color .2s, color .2s;
+}
+.upload-row.state-uploading .upload-row-icon { animation: upload-icon-bounce 1.1s ease-in-out infinite; }
+.upload-row.state-queued .upload-row-icon { background: var(--bg); color: var(--text-faint); }
+.upload-row.state-done .upload-row-icon { background: rgba(61, 217, 168, .15); color: var(--success); }
+.upload-row.state-failed .upload-row-icon { background: var(--danger-dim); color: var(--danger); }
+.upload-row.state-skipped .upload-row-icon { background: var(--bg); color: var(--text-faint); }
+
+.upload-row-body { flex: 1; min-width: 0; }
+.upload-row-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 7px; }
+.upload-row-name {
+  font-size: 12.5px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
+.upload-row.state-queued .upload-row-name { color: var(--text-faint); }
+.upload-row-pct { font-size: 11px; color: var(--text-faint); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.upload-row-speed {
+  display: block; font-size: 10.5px; color: var(--text-faint); margin-top: 6px;
+  font-variant-numeric: tabular-nums; min-height: 13px;
+}
+
+.upload-row.state-done .bar-fill, .upload-row.state-done .bar-fill::after { background: var(--success); }
+.upload-row.state-failed .bar-fill, .upload-row.state-failed .bar-fill::after { background: var(--danger); }
+.upload-row.state-queued .bar-fill::after,
+.upload-row.state-done .bar-fill::after,
+.upload-row.state-failed .bar-fill::after,
+.upload-row.state-skipped .bar-fill::after { animation: none; content: none; }
 
 /* --- Category badge --- */
 .cat-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 7px; flex-shrink: 0; }

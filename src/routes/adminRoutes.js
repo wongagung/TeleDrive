@@ -1,4 +1,5 @@
 const express = require('express');
+const bcrypt = require('bcryptjs');
 const db = require('../db');
 const { requireAuth } = require('../middleware/authMiddleware');
 const { requireAdmin } = require('../middleware/adminMiddleware');
@@ -45,6 +46,26 @@ router.patch('/users/:id/quota', (req, res) => {
   const bytes = mb * 1024 * 1024;
   db.prepare('UPDATE users SET quota_bytes = ? WHERE id = ?').run(bytes, targetId);
   res.json({ ok: true, id: targetId, quota_bytes: bytes > 0 ? bytes : DEFAULT_QUOTA_BYTES });
+});
+
+// Fallback buat user yang lupa password TAPI belum hubungkan Telegram
+// (jadi gak bisa pakai self-service reset via DM bot) -- admin set
+// password baru manual, lalu semua sesi lama user itu otomatis logout.
+router.patch('/users/:id/password', (req, res) => {
+  const targetId = parseInt(req.params.id, 10);
+  const user = db.prepare('SELECT id FROM users WHERE id = ?').get(targetId);
+  if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+  const { new_password } = req.body;
+  if (!new_password || new_password.length < 8 || new_password.length > 200) {
+    return res.status(400).json({ error: 'Password minimal 8 karakter' });
+  }
+
+  const hash = bcrypt.hashSync(new_password, 12);
+  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, targetId);
+  revokeAllRefreshTokensForUser(targetId);
+
+  res.json({ ok: true });
 });
 
 router.patch('/users/:id/admin', (req, res) => {

@@ -25,6 +25,36 @@ function consumeLinkCode(code) {
   return row;
 }
 
+const RESET_CODE_TTL_MINUTES = 15;
+
+/** Buat kode reset password 6-digit, dikirim lewat DM Telegram. Cuma bisa
+ * dipakai kalau user itu sudah pernah "Hubungkan Telegram" sebelumnya
+ * (kalau belum, gak ada chat_id buat DM-nya sama sekali). */
+async function sendPasswordResetCode(userId, chatId) {
+  db.prepare('DELETE FROM password_reset_codes WHERE user_id = ?').run(userId);
+
+  const code = String(crypto.randomInt(100000, 999999)); // 6 digit, gampang diketik dari HP
+  const expiresAt = new Date(Date.now() + RESET_CODE_TTL_MINUTES * 60 * 1000).toISOString();
+  db.prepare('INSERT INTO password_reset_codes (code, user_id, expires_at) VALUES (?, ?, ?)').run(code, userId, expiresAt);
+
+  await sendMessage(
+    chatId,
+    `🔑 Kode reset password VaultKu kamu: ${code}\n\nBerlaku ${RESET_CODE_TTL_MINUTES} menit. ` +
+    `Kalau bukan kamu yang minta ini, abaikan saja pesan ini -- password kamu aman.`
+  );
+
+  return { expiresInMinutes: RESET_CODE_TTL_MINUTES };
+}
+
+function consumeResetCode(code, userId) {
+  const row = db
+    .prepare("SELECT * FROM password_reset_codes WHERE code = ? AND user_id = ? AND expires_at > datetime('now')")
+    .get(code, userId);
+  if (!row) return null;
+  db.prepare('DELETE FROM password_reset_codes WHERE code = ?').run(code);
+  return row;
+}
+
 async function handlePrivateMessage(message) {
   const text = (message.text || '').trim();
   const chatId = message.chat.id;
@@ -103,4 +133,4 @@ function stopPolling() {
   polling = false;
 }
 
-module.exports = { createLinkCode, startPolling, stopPolling };
+module.exports = { createLinkCode, sendPasswordResetCode, consumeResetCode, startPolling, stopPolling };

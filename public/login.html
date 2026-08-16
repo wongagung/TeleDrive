@@ -16,10 +16,15 @@
 <style>
 .auth-wrap{width:100%;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px 20px;box-sizing:border-box}
 .auth-card{width:min(480px,calc(100vw - 40px));min-height:0;box-sizing:border-box;padding:36px 32px;overflow:visible}
-.auth-card form{width:100%}
+.auth-card form{width:100%;display:flex;flex-direction:column;gap:11px}
 .auth-card input,.auth-card button[type="submit"]{width:100%;box-sizing:border-box}
 .captcha-wrap{width:100%;min-height:65px;margin:14px 0 16px;display:flex;align-items:center;justify-content:center;overflow:visible}
 .cf-turnstile{width:300px;min-width:300px;min-height:65px;margin:0 auto;display:block}
+.subtle-link{text-align:center;font-size:12.5px;margin:12px 0 0}
+.subtle-link a{color:var(--accent);text-decoration:none;cursor:pointer}
+.subtle-link a:hover{text-decoration:underline}
+.forgot-hint{font-size:12.5px;color:var(--text-muted);line-height:1.5;margin:14px 0 16px;text-align:center}
+#forgotWrap #forgotStep2{margin-top:14px}
 @media(max-width:520px){.auth-wrap{padding:20px 12px}.auth-card{width:min(100%,440px);padding:30px 20px}}
 @media(max-width:360px){.auth-card{width:100%;padding-left:14px;padding-right:14px}.cf-turnstile{transform:scale(.92);transform-origin:center;width:276px;min-width:276px}}
 </style>
@@ -34,6 +39,7 @@
 </div>
 <form id="authForm">
 <input type="text" id="username" placeholder="Username" required autocomplete="username" />
+<input type="email" id="email" placeholder="Email" autocomplete="email" hidden />
 <input type="password" id="password" placeholder="Password" required autocomplete="current-password" />
 <div class="captcha-wrap">
 <div class="cf-turnstile"
@@ -47,6 +53,33 @@ data-error-callback="onTurnstileError"></div>
 <button type="submit" id="submitBtn">Masuk</button>
 </form>
 <p id="msg" class="msg"></p>
+<p class="subtle-link"><a href="#" id="forgotLink">Lupa password?</a></p>
+
+<div id="registerVerifyWrap" hidden>
+  <p class="forgot-hint">Kode verifikasi sudah dikirim ke email kamu. Masukkan di bawah buat menyelesaikan pendaftaran (berlaku 15 menit).</p>
+  <form id="registerVerifyForm">
+    <input type="text" id="registerCode" placeholder="Kode 6 digit dari email" required maxlength="6" inputmode="numeric" autocomplete="one-time-code" />
+    <button type="submit" id="registerVerifyBtn">Verifikasi & Buat Akun</button>
+  </form>
+  <p id="registerVerifyMsg" class="msg"></p>
+  <p class="subtle-link"><a href="#" id="backToLoginFromVerify">← Kembali</a></p>
+</div>
+
+<div id="forgotWrap" hidden>
+  <p class="forgot-hint">Masukkan username kamu. Kalau akun ditemukan dan sudah pernah "Hubungkan Telegram", kode reset dikirim lewat DM bot.</p>
+  <form id="forgotStep1">
+    <input type="text" id="forgotUsername" placeholder="Username" required autocomplete="username" />
+    <button type="submit" id="forgotStep1Btn">Kirim Kode ke Telegram</button>
+  </form>
+  <form id="forgotStep2" hidden>
+    <input type="text" id="resetCode" placeholder="Kode 6 digit dari Telegram" required maxlength="6" inputmode="numeric" autocomplete="one-time-code" />
+    <input type="password" id="newPassword" placeholder="Password baru (min 8 karakter)" required autocomplete="new-password" />
+    <input type="password" id="newPassword2" placeholder="Ulangi password baru" required autocomplete="new-password" />
+    <button type="submit" id="forgotStep2Btn">Reset Password</button>
+  </form>
+  <p id="forgotMsg" class="msg"></p>
+  <p class="subtle-link"><a href="#" id="backToLogin">← Kembali ke login</a></p>
+</div>
 </div>
 </div>
 <script src="login.js"></script>

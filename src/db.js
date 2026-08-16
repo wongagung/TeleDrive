@@ -102,6 +102,31 @@ CREATE TABLE IF NOT EXISTS telegram_link_codes (
 );
 CREATE INDEX IF NOT EXISTS idx_link_codes_expires ON telegram_link_codes(expires_at);
 
+-- Kode sekali-pakai buat reset password lewat DM Telegram (dipakai kalau
+-- user lupa password DAN akunnya sudah terhubung ke Telegram).
+CREATE TABLE IF NOT EXISTS password_reset_codes (
+  code TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TEXT DEFAULT (datetime('now')),
+  expires_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_reset_codes_expires ON password_reset_codes(expires_at);
+
+-- Registrasi TIDAK langsung bikin baris di "users" -- data calon akun
+-- (username/email/password yang sudah di-hash) ditaruh di sini dulu
+-- sampai kode verifikasi di-email dikonfirmasi. Kalau kode gak pernah
+-- dimasukkan / salah terus / kadaluarsa, akunnya emang gak akan pernah
+-- kebuat sama sekali.
+CREATE TABLE IF NOT EXISTS pending_registrations (
+  code TEXT PRIMARY KEY,
+  username TEXT NOT NULL,
+  email TEXT NOT NULL,
+  password_hash TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now')),
+  expires_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_pending_reg_expires ON pending_registrations(expires_at);
+
 -- Index full-text buat pencarian nama file. External-content FTS5: data
 -- aslinya tetap di tabel files, FTS5 cuma nyimpen index tokennya supaya
 -- hemat storage & otomatis sinkron lewat trigger di bawah.
@@ -138,6 +163,15 @@ if (!userCols2.includes('telegram_chat_id')) {
 if (!userCols2.includes('quota_notified_pct')) {
   db.exec('ALTER TABLE users ADD COLUMN quota_notified_pct INTEGER NOT NULL DEFAULT 0');
 }
+if (!userCols2.includes('email')) {
+  db.exec('ALTER TABLE users ADD COLUMN email TEXT');
+}
+if (!userCols2.includes('email_verified')) {
+  // User lama (sebelum fitur ini ada) otomatis dianggap terverifikasi --
+  // mereka gak perlu diverifikasi ulang, akun mereka udah lama jalan.
+  db.exec('ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 1');
+}
+db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email)');
 
 const fileCols = db.prepare("PRAGMA table_info(files)").all().map((c) => c.name);
 if (!fileCols.includes('thumbnail')) {

@@ -69,6 +69,7 @@ async function loadUsers() {
       <div class="row-actions">
         <button data-quota title="Ubah kuota">📊</button>
         <button data-toggle-admin title="${u.is_admin ? 'Cabut admin' : 'Jadikan admin'}">${u.is_admin ? '⬇ Demote' : '⬆ Promote'}</button>
+        <button data-reset-password title="Reset password user ini">🔑</button>
         <button data-delete title="Hapus user" class="danger-btn">🗑</button>
       </div>
     `;
@@ -99,6 +100,19 @@ async function loadUsers() {
         body: JSON.stringify({ is_admin: makeAdmin }),
       });
       if (res.ok) loadUsers(); else alert((await res.json()).error);
+    };
+
+    row.querySelector('[data-reset-password]').onclick = async () => {
+      const newPassword = prompt(`Password baru untuk "${u.username}" (min 8 karakter):`);
+      if (!newPassword) return;
+      if (newPassword.length < 8) return alert('Password minimal 8 karakter');
+      if (!confirm(`Set password baru untuk "${u.username}"? Semua sesi login user ini akan otomatis logout.`)) return;
+
+      const res = await api(`/api/admin/users/${u.id}/password`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ new_password: newPassword }),
+      });
+      if (res.ok) alert('Password berhasil diganti.'); else alert((await res.json()).error);
     };
 
     row.querySelector('[data-delete]').onclick = async () => {

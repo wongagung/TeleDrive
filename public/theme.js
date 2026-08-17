@@ -71,6 +71,9 @@
     buildThemeControl();
     applyTheme(localStorage.getItem(STORAGE) || 'auto');
 
+    const footerYear = document.getElementById('footerYear');
+    if (footerYear) footerYear.textContent = new Date().getFullYear();
+
     // Cursor glow: a soft light that follows the pointer.
     const glow = document.createElement('div');
     glow.id = 'cursorGlow';

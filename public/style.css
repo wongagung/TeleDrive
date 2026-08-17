@@ -589,6 +589,16 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
 .admin-grid .row-actions button[data-quota] { font-size: 15px; padding: 9px 12px; }
 .admin-grid .row-actions button.danger-btn:hover { border-color: var(--danger); }
 
+/* --- Footer --- */
+.site-footer {
+  max-width: 1440px; margin: 40px auto 0; padding: 20px 28px;
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+  border-top: 1px solid var(--border); font-size: 12px; color: var(--text-faint);
+}
+.site-footer a { color: var(--text-faint); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .footer-links { display: flex; gap: 16px; }
+
 /* --- Halaman share publik --- */
 .share-badge {
   font-size: 12px; font-weight: 700; color: var(--accent); background: var(--accent-dim);

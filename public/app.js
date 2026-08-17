@@ -1059,12 +1059,13 @@ async function uploadQueue(files) {
 
   for (let i = 0; i < files.length; i++) {
     const result = await resumableUpload(files[i], rows[i]);
-    if (result === 'failed') failed.push(files[i].name);
+    if (result.status === 'failed') failed.push({ name: files[i].name, message: result.message });
   }
 
   loadList();
   if (failed.length) {
-    alert(`${failed.length} dari ${files.length} file gagal diupload:\n${failed.join('\n')}`);
+    const detail = failed.map((f) => `• ${f.name}\n  ${f.message}`).join('\n\n');
+    alert(`${failed.length} dari ${files.length} file gagal diupload:\n\n${detail}`);
   }
 }
 
@@ -1192,7 +1193,7 @@ async function resumableUpload(file, row) {
             row.setState('skipped');
             row.speed.textContent = 'Dilewati (sudah ada)';
             removeUploadRow(row, 2000);
-            return 'skipped';
+            return { status: 'skipped' };
           }
           if (action === 'overwrite') {
             row.speed.textContent = 'Menghapus file lama...';
@@ -1277,13 +1278,13 @@ async function resumableUpload(file, row) {
     row.icon.textContent = '✓';
     row.speed.textContent = 'Selesai';
     removeUploadRow(row, 1500);
-    return 'ok';
+    return { status: 'ok' };
   } catch (err) {
     row.setState('failed');
     row.icon.textContent = '✕';
     row.speed.textContent = err.message;
     removeUploadRow(row, 4000);
-    return 'failed';
+    return { status: 'failed', message: err.message };
   }
 }
 

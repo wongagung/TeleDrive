@@ -32,4 +32,16 @@ const blockLimiter = rateLimit({
   message: { error: 'Terlalu banyak request upload block. Coba lagi nanti.' },
 });
 
-module.exports = { authLimiter, uploadLimiter, blockLimiter };
+// Share link publik: gak pakai login sama sekali, jadi perlu limiter
+// sendiri buat cegah orang brute-force nebak token / scraping berlebihan.
+// Token-nya sendiri sudah 48-bit acak (praktis mustahil ditebak), ini
+// cuma jaring pengaman tambahan.
+const publicShareLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Terlalu banyak request. Coba lagi nanti.' },
+});
+
+module.exports = { authLimiter, uploadLimiter, blockLimiter, publicShareLimiter };

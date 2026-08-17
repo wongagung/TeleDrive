@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow, noarchive" />
+<title>Dibagikan — VaultKu</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<link rel="stylesheet" href="style.css" />
+<script src="theme.js" defer></script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-brand"><h1>📁 VaultKu</h1></div>
+  <div class="topbar-right">
+    <span class="share-badge">🔗 Dibagikan</span>
+    <a href="/" class="admin-link">Buka VaultKu →</a>
+  </div>
+</header>
+
+<main class="drive-wrap" id="mainArea">
+  <div id="loadingState" class="share-loading">Memuat...</div>
+  <div id="errorState" class="share-error" hidden></div>
+
+  <!-- ---------- Tampilan FILE tunggal ---------- -->
+  <div id="fileView" class="share-file-view" hidden>
+    <div class="share-file-card">
+      <div id="fileThumb" class="share-file-thumb"></div>
+      <h2 id="fileName" class="share-file-name"></h2>
+      <p id="fileMeta" class="share-file-meta"></p>
+      <div class="share-file-actions">
+        <button id="filePreviewBtn" class="primary-btn" hidden>👁 Lihat</button>
+        <a id="fileDownloadBtn" class="upload-btn" download>⬇ Download</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ---------- Tampilan FOLDER (browsable) ---------- -->
+  <div id="folderView" class="share-folder-view" hidden>
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <nav id="breadcrumb" class="breadcrumb"></nav>
+      </div>
+      <div class="actions">
+        <div class="view-toggle">
+          <button id="viewListBtn" title="Tampilan list">☰</button>
+          <button id="viewGridBtn" title="Tampilan grid">▦</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="table-scroll">
+      <table id="mainTable" class="drive-table">
+        <thead><tr><th>Nama</th><th>Ukuran</th><th>Tanggal</th><th></th></tr></thead>
+        <tbody id="listBody"></tbody>
+      </table>
+    </div>
+
+    <div id="gridView" class="grid-view" hidden></div>
+    <p id="emptyMsg" class="empty" hidden>Folder ini kosong.</p>
+  </div>
+</main>
+
+<div id="previewModal" class="modal-overlay" hidden>
+  <div class="modal-box modal-preview">
+    <div class="modal-header"><span id="previewTitle"></span><button id="previewClose" class="modal-close">✕</button></div>
+    <div id="previewBody" class="modal-body"></div>
+  </div>
+</div>
+
+<script src="share.js"></script>
+</body>
+</html>

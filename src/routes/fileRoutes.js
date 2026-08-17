@@ -3,11 +3,12 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const db = require('../db');
-const { getLocalFilePath, deleteMessage, classifyCategory } = require('../telegram');
+const { deleteMessage, classifyCategory } = require('../telegram');
 const { sendFileToTelegram, CHUNK_SIZE } = require('../uploadPipeline');
 const { requireAuth } = require('../middleware/authMiddleware');
 const { uploadLimiter, blockLimiter } = require('../middleware/rateLimiters');
 const { getQuotaBytes, getUsedBytes, assertWithinQuota, checkAndNotifyQuota } = require('../quota');
+const { PREVIEWABLE_MIME, streamFile, getDescendantIds } = require('../fileStreaming');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -19,7 +20,6 @@ fs.mkdirSync(SESSIONS_DIR, { recursive: true });
 const MAX_UPLOAD_MB = parseInt(process.env.MAX_UPLOAD_MB, 10) || 10240; // default 10GB/file
 const BLOCK_SIZE = (parseInt(process.env.UPLOAD_BLOCK_SIZE_MB, 10) || 8) * 1024 * 1024; // default 8MB/block
 
-const PREVIEWABLE_MIME = /^image\/|^application\/pdf$|^video\/|^audio\//;
 
 // ---------- Helper: ownership & cycle checks ----------
 
@@ -31,21 +31,6 @@ function assertFolderOwnership(folderId, userId) {
     err.status = 403;
     throw err;
   }
-}
-
-/** Kumpulkan semua id descendant (anak, cucu, dst) dari sebuah folder. */
-function getDescendantIds(folderId, userId) {
-  const ids = [];
-  let frontier = [folderId];
-  while (frontier.length) {
-    const rows = db
-      .prepare(`SELECT id FROM folders WHERE user_id = ? AND parent_id IN (${frontier.map(() => '?').join(',')})`)
-      .all(userId, ...frontier);
-    const nextIds = rows.map((r) => r.id);
-    ids.push(...nextIds);
-    frontier = nextIds;
-  }
-  return ids;
 }
 
 // ---------- Folders ----------
@@ -401,87 +386,8 @@ router.post('/upload/:id/complete', uploadLimiter, async (req, res) => {
 });
 
 // ---------- Download & Preview (reassemble chunk dari Telegram kalau perlu) ----------
-
-/** Parse header Range HTTP standar ("bytes=start-end"). Return null kalau
- * tidak ada/tidak valid format, atau string 'invalid' kalau rentangnya di
- * luar ukuran file (buat balikin 416). */
-function parseRange(rangeHeader, totalSize) {
-  if (!rangeHeader) return null;
-  const match = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader);
-  if (!match) return null;
-
-  let [, startStr, endStr] = match;
-  if (!startStr && !endStr) return null;
-
-  let start, end;
-  if (!startStr) {
-    // suffix range, contoh "bytes=-500" = 500 byte terakhir
-    const suffixLength = parseInt(endStr, 10);
-    start = Math.max(0, totalSize - suffixLength);
-    end = totalSize - 1;
-  } else {
-    start = parseInt(startStr, 10);
-    end = endStr ? parseInt(endStr, 10) : totalSize - 1;
-  }
-
-  if (Number.isNaN(start) || Number.isNaN(end) || start > end || start < 0 || end >= totalSize) {
-    return 'invalid';
-  }
-  return { start, end };
-}
-
-/** Stream rentang byte [start, end] (inklusif) dari file yang mungkin
- * kepecah jadi beberapa chunk Telegram, dengan memetakan rentang global ke
- * rentang lokal per chunk. Ini yang bikin video bisa di-seek/scrub. */
-async function streamByteRange(file, start, end, res) {
-  const chunks = JSON.parse(file.chunks).sort((a, b) => a.seq - b.seq);
-
-  let cumulativeOffset = 0;
-  for (const chunk of chunks) {
-    const chunkStart = cumulativeOffset;
-    const chunkEnd = cumulativeOffset + chunk.size - 1;
-    cumulativeOffset += chunk.size;
-
-    if (end < chunkStart || start > chunkEnd) continue; // chunk ini di luar rentang yang diminta
-
-    const localStart = Math.max(0, start - chunkStart);
-    const localEnd = Math.min(chunk.size - 1, end - chunkStart);
-
-    const localPath = await getLocalFilePath(chunk.tg_file_id);
-    await new Promise((resolve, reject) => {
-      const stream = fs.createReadStream(localPath, { start: localStart, end: localEnd });
-      stream.on('error', reject);
-      stream.on('end', resolve);
-      stream.pipe(res, { end: false });
-    });
-
-    if (cumulativeOffset > end) break; // sudah lewat rentang yang diminta, gak perlu chunk berikutnya
-  }
-  res.end();
-}
-
-async function streamFile(file, res, req, disposition) {
-  res.setHeader('Content-Disposition', `${disposition}; filename="${encodeURIComponent(file.original_name)}"`);
-  res.setHeader('Content-Type', file.mime_type || 'application/octet-stream');
-  res.setHeader('Accept-Ranges', 'bytes'); // wajib biar <video>/<audio> tahu boleh minta Range
-
-  const range = parseRange(req.headers.range, file.size);
-
-  if (range === 'invalid') {
-    res.setHeader('Content-Range', `bytes */${file.size}`);
-    return res.status(416).end();
-  }
-
-  if (range) {
-    res.status(206);
-    res.setHeader('Content-Range', `bytes ${range.start}-${range.end}/${file.size}`);
-    res.setHeader('Content-Length', range.end - range.start + 1);
-    await streamByteRange(file, range.start, range.end, res);
-  } else {
-    res.setHeader('Content-Length', file.size);
-    await streamByteRange(file, 0, file.size - 1, res);
-  }
-}
+// parseRange/streamByteRange/streamFile sekarang di ../fileStreaming.js
+// (dipakai bareng sama route share publik).
 
 router.get('/download/:id', async (req, res) => {
   const file = db.prepare('SELECT * FROM files WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
@@ -620,6 +526,68 @@ router.post('/bulk-move', (req, res) => {
   }
 
   res.json({ ok: true, movedFiles, movedFolders, skipped });
+});
+
+// ---------- Share link (publik) ----------
+// Token acak pendek, BUKAN id database asli, biar orang gak bisa
+// nebak-nebak file lain cuma dengan ganti angka di URL. Endpoint publik
+// yang beneran nge-serve file/folder-nya ada di ../routes/publicShareRoutes.js
+// (gak lewat requireAuth), file ini cuma buat OWNER kelola link-nya.
+
+function generateShareToken() {
+  return crypto.randomBytes(6).toString('base64url'); // 8 karakter, URL-safe
+}
+
+function getOrCreateShareLink({ ownerId, fileId, folderId }) {
+  const existing = fileId
+    ? db.prepare('SELECT * FROM share_links WHERE file_id = ? AND owner_id = ?').get(fileId, ownerId)
+    : db.prepare('SELECT * FROM share_links WHERE folder_id = ? AND owner_id = ?').get(folderId, ownerId);
+  if (existing) return existing;
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const token = generateShareToken();
+    try {
+      db.prepare('INSERT INTO share_links (token, owner_id, file_id, folder_id) VALUES (?, ?, ?, ?)')
+        .run(token, ownerId, fileId || null, folderId || null);
+      return db.prepare('SELECT * FROM share_links WHERE token = ?').get(token);
+    } catch (err) {
+      if (!/UNIQUE/.test(err.message)) throw err;
+      // token bentrok (sangat jarang, 1 dari ~281 triliun) -- coba token baru
+    }
+  }
+  throw new Error('Gagal generate token share, coba lagi');
+}
+
+router.post('/files/:id/share', (req, res) => {
+  const file = db.prepare('SELECT id FROM files WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+  if (!file) return res.status(404).json({ error: 'File tidak ditemukan' });
+
+  const link = getOrCreateShareLink({ ownerId: req.user.id, fileId: file.id });
+  res.json({ token: link.token });
+});
+
+router.post('/folders/:id/share', (req, res) => {
+  const folder = db.prepare('SELECT id FROM folders WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+  if (!folder) return res.status(404).json({ error: 'Folder tidak ditemukan' });
+
+  const link = getOrCreateShareLink({ ownerId: req.user.id, folderId: folder.id });
+  res.json({ token: link.token });
+});
+
+router.get('/files/:id/share', (req, res) => {
+  const link = db.prepare('SELECT token FROM share_links WHERE file_id = ? AND owner_id = ?').get(req.params.id, req.user.id);
+  res.json({ shared: !!link, token: link ? link.token : null });
+});
+
+router.get('/folders/:id/share', (req, res) => {
+  const link = db.prepare('SELECT token FROM share_links WHERE folder_id = ? AND owner_id = ?').get(req.params.id, req.user.id);
+  res.json({ shared: !!link, token: link ? link.token : null });
+});
+
+router.delete('/share/:token', (req, res) => {
+  const info = db.prepare('DELETE FROM share_links WHERE token = ? AND owner_id = ?').run(req.params.token, req.user.id);
+  if (info.changes === 0) return res.status(404).json({ error: 'Link share tidak ditemukan' });
+  res.json({ ok: true });
 });
 
 module.exports = router;

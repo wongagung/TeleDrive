@@ -13,6 +13,7 @@ cleanupExpiredTokens();
 const authRoutes = require('./routes/authRoutes');
 const fileRoutes = require('./routes/fileRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const publicShareRoutes = require('./routes/publicShareRoutes');
 const { startPolling } = require('./telegramBot');
 const { checkFfmpegAvailable } = require('./videoThumbnail');
 
@@ -54,6 +55,15 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use('/api/auth', authRoutes);
 app.use('/api/drive', fileRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/public/share', publicShareRoutes);
+
+// URL pendek buat share link, mis. teledrives.duckdns.org/s/aB3dK9pQ --
+// ditaruh SETELAH express.static jadi kalau kebetulan ada file statis
+// beneran namanya sama, itu yang menang; tapi token acak gak akan pernah
+// nabrak nama file asli jadi ini selalu jalan buat share link beneran.
+app.get('/s/:token', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'share.html'));
+});
 
 setInterval(cleanupExpiredTokens, 6 * 60 * 60 * 1000).unref();
 

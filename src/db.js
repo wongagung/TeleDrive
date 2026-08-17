@@ -140,6 +140,21 @@ CREATE TABLE IF NOT EXISTS telegram_register_codes (
 );
 CREATE INDEX IF NOT EXISTS idx_tg_reg_codes_expires ON telegram_register_codes(expires_at);
 
+-- Link share publik buat file/folder. Token-nya string acak pendek (bukan
+-- ID database asli) -- biar orang gak bisa nebak-nebak file lain cuma
+-- dengan ganti angka di URL. Salah satu dari file_id/folder_id keisi,
+-- gak pernah dua-duanya sekaligus.
+CREATE TABLE IF NOT EXISTS share_links (
+  token TEXT PRIMARY KEY,
+  owner_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  file_id INTEGER REFERENCES files(id) ON DELETE CASCADE,
+  folder_id INTEGER REFERENCES folders(id) ON DELETE CASCADE,
+  created_at TEXT DEFAULT (datetime('now')),
+  expires_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_share_links_file ON share_links(file_id);
+CREATE INDEX IF NOT EXISTS idx_share_links_folder ON share_links(folder_id);
+
 -- Index full-text buat pencarian nama file. External-content FTS5: data
 -- aslinya tetap di tabel files, FTS5 cuma nyimpen index tokennya supaya
 -- hemat storage & otomatis sinkron lewat trigger di bawah.

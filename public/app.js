@@ -347,6 +347,7 @@ function renderTableView(data) {
       <td>—</td>
       <td>${new Date(f.created_at).toLocaleDateString('id-ID')}</td>
       <td class="row-actions">
+        <button data-share-folder title="Bagikan">🔗</button>
         <button data-rename-folder title="Rename">✏️</button>
         <button data-move-folder title="Pindah">📂</button>
         <button data-del-folder title="Hapus">🗑</button>
@@ -360,6 +361,10 @@ function renderTableView(data) {
     nameSpan.onclick = (e) => {
       if (e.target.closest('input')) return;
       openFolder(f);
+    };
+    tr.querySelector('[data-share-folder]').onclick = (e) => {
+      e.stopPropagation();
+      openShareModal('folder', f.id, f.name);
     };
     tr.querySelector('[data-rename-folder]').onclick = async (e) => {
       e.stopPropagation();
@@ -397,6 +402,7 @@ function renderTableView(data) {
       <td class="row-actions">
         ${isPreviewable(f.mime_type) ? '<button data-preview title="Lihat">👁</button>' : ''}
         <button data-dl title="Download">⬇</button>
+        <button data-share-file title="Bagikan">🔗</button>
         <button data-rename-file title="Rename">✏️</button>
         <button data-move-file title="Pindah">📂</button>
         <button data-del-file title="Hapus">🗑</button>
@@ -415,6 +421,7 @@ function renderTableView(data) {
       if (pv) pv.onclick = () => openPreview(f.id, f.original_name, f.mime_type);
     }
     tr.querySelector('[data-dl]').onclick = () => downloadWithAuth(f.id, f.original_name);
+    tr.querySelector('[data-share-file]').onclick = () => openShareModal('file', f.id, f.original_name);
     tr.querySelector('[data-rename-file]').onclick = async () => {
       const newName = prompt('Nama baru:', f.original_name);
       if (!newName || newName === f.original_name) return;
@@ -444,6 +451,7 @@ function renderGridView(data) {
     card.innerHTML = `
       <input type="checkbox" class="grid-card-check" data-folder-check="${f.id}" ${selectedFolders.has(f.id) ? 'checked' : ''} />
       <div class="grid-card-actions">
+        <button data-share-folder title="Bagikan">🔗</button>
         <button data-rename-folder title="Rename">✏️</button>
         <button data-move-folder title="Pindah">📂</button>
         <button data-del-folder title="Hapus">🗑</button>
@@ -459,6 +467,10 @@ function renderGridView(data) {
     card.onclick = (e) => {
       if (e.target.closest('input') || e.target.closest('button')) return;
       openFolder(f);
+    };
+    card.querySelector('[data-share-folder]').onclick = (e) => {
+      e.stopPropagation();
+      openShareModal('folder', f.id, f.name);
     };
     card.querySelector('[data-rename-folder]').onclick = async (e) => {
       e.stopPropagation();
@@ -507,6 +519,7 @@ function renderGridView(data) {
       <div class="grid-card-actions">
         ${isPreviewable(f.mime_type) ? '<button data-preview title="Lihat">👁</button>' : ''}
         <button data-dl title="Download">⬇</button>
+        <button data-share-file title="Bagikan">🔗</button>
         <button data-rename-file title="Rename">✏️</button>
         <button data-move-file title="Pindah">📂</button>
         <button data-del-file title="Hapus">🗑</button>
@@ -552,6 +565,7 @@ function renderGridView(data) {
       if (pv) pv.onclick = (e) => { e.stopPropagation(); openPreview(f.id, f.original_name, f.mime_type); };
     }
     card.querySelector('[data-dl]').onclick = (e) => { e.stopPropagation(); downloadWithAuth(f.id, f.original_name); };
+    card.querySelector('[data-share-file]').onclick = (e) => { e.stopPropagation(); openShareModal('file', f.id, f.original_name); };
     card.querySelector('[data-rename-file]').onclick = async (e) => {
       e.stopPropagation();
       const newName = prompt('Nama baru:', f.original_name);
@@ -892,6 +906,61 @@ async function generateTelegramCode() {
     <p class="tg-code-hint">Setelah dikirim, bot akan otomatis balas konfirmasi. Buka modal ini lagi buat cek statusnya.</p>
   `;
 }
+
+// ---------- Share link (bagikan file/folder ke siapa aja lewat link publik) ----------
+
+const shareModal = document.getElementById('shareModal');
+const shareLinkInput = document.getElementById('shareLinkInput');
+document.getElementById('shareModalClose').onclick = () => { shareModal.hidden = true; };
+shareModal.onclick = (e) => { if (e.target === shareModal) shareModal.hidden = true; };
+
+let currentShareToken = null;
+
+async function openShareModal(type, id, name) {
+  document.getElementById('shareModalTitle').textContent = `🔗 Bagikan "${name}"`;
+  shareLinkInput.value = 'Memuat...';
+  currentShareToken = null;
+  shareModal.hidden = false;
+
+  const endpoint = type === 'folder' ? `/api/drive/folders/${id}/share` : `/api/drive/files/${id}/share`;
+  const res = await api(endpoint, { method: 'POST' });
+  if (!res || !res.ok) {
+    shareLinkInput.value = '';
+    alert('Gagal membuat link share.');
+    shareModal.hidden = true;
+    return;
+  }
+  const data = await res.json();
+  currentShareToken = data.token;
+  shareLinkInput.value = `${window.location.origin}/s/${data.token}`;
+  shareLinkInput.focus();
+  shareLinkInput.select();
+}
+
+document.getElementById('shareCopyBtn').onclick = async () => {
+  const btn = document.getElementById('shareCopyBtn');
+  try {
+    await navigator.clipboard.writeText(shareLinkInput.value);
+  } catch (err) {
+    shareLinkInput.select();
+    document.execCommand('copy');
+  }
+  const original = btn.textContent;
+  btn.textContent = '✓ Disalin';
+  setTimeout(() => { btn.textContent = original; }, 1500);
+};
+
+document.getElementById('shareRevokeBtn').onclick = async () => {
+  if (!currentShareToken) return;
+  if (!confirm('Nonaktifkan link share ini? Siapa pun yang sudah punya link ini gak akan bisa akses lagi.')) return;
+  const res = await api(`/api/drive/share/${currentShareToken}`, { method: 'DELETE' });
+  if (res && res.ok) {
+    shareModal.hidden = true;
+    currentShareToken = null;
+  } else {
+    alert('Gagal menonaktifkan link.');
+  }
+};
 
 // ---------- Resumable upload ----------
 

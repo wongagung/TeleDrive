@@ -573,6 +573,14 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
   width: 100%;
   box-sizing: border-box;
 }
+/* Wajib: default grid item punya min-width:auto, jadi konten yang gak
+   mau nyusut (mis. teks storage panjang) bisa maksa kolomnya sendiri
+   lebih lebar dari track yang udah dideklarasikan -- karena tiap baris
+   di sini grid-nya independen sendiri-sendiri (bukan 1 grid tabel yang
+   berbagi kolom), itu bikin batas kolom geser antar baris alias "gak
+   lurus". min-width:0 di sini yang mastiin semua baris punya lebar
+   kolom PERSIS sama walau isinya beda-beda. */
+.admin-grid-row > * { min-width: 0; }
 .admin-grid-head {
   padding: 0 10px; height: 40px; color: var(--text-faint); font-weight: 600;
   border-bottom: 1px solid var(--border); font-size: 11px; text-transform: uppercase; letter-spacing: .04em;

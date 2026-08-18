@@ -598,6 +598,7 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
 }
 .admin-grid .row-actions button:hover { background: var(--surface-hover); border-color: var(--text-faint); }
 .admin-grid .row-actions button[data-quota] { width: 36px; flex: 0 0 36px; font-size: 15px; padding: 0; margin-right: 10px; }
+.admin-grid .row-actions button[data-toggle-admin] { width: 104px; flex: 0 0 104px; }
 .quota-btn-icon { width: 20px; height: 20px; display: block; object-fit: contain; }
 .admin-grid .row-actions button.danger-btn:hover { border-color: var(--danger); }
 
@@ -755,4 +756,6 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
   .admin-grid-row > div[data-label="Username"] { font-size: 16px; font-weight: 700; color: var(--text); }
   .admin-grid .row-actions { justify-content: stretch; }
   .admin-grid .row-actions button { flex: 1; min-width: 0; }
+  .admin-grid .row-actions button[data-quota],
+  .admin-grid .row-actions button[data-toggle-admin] { width: auto; flex: 1; margin-right: 0; }
 }

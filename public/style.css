@@ -559,7 +559,7 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
 .stat-value { font-size: 26px; font-weight: 800; color: var(--accent); }
 .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
 .mini-bar { height: 5px; width: 140px; background: var(--bg); border-radius: 3px; overflow: hidden; margin-bottom: 3px; }
-.mini-bar-fill { height: 100%; background: var(--accent); }
+.mini-bar-fill { height: 100%; min-width: 3px; background: var(--accent); border-radius: 3px; transition: width .3s var(--ease); }
 .mini-bar-text { font-size: 11px; color: var(--text-faint); }
 
 /* Daftar user admin — CSS Grid (bukan <table>), supaya lebarnya selalu

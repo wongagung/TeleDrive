@@ -597,7 +597,7 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
   border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer;
 }
 .admin-grid .row-actions button:hover { background: var(--surface-hover); border-color: var(--text-faint); }
-.admin-grid .row-actions button[data-quota] { width: 36px; flex: 0 0 36px; font-size: 15px; padding: 0; }
+.admin-grid .row-actions button[data-quota] { width: 36px; flex: 0 0 36px; font-size: 15px; padding: 0; margin-right: 10px; }
 .admin-grid .row-actions button.danger-btn:hover { border-color: var(--danger); }
 
 /* --- Footer --- */

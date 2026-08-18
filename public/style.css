@@ -564,10 +564,10 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
 
 /* Daftar user admin — CSS Grid (bukan <table>), supaya lebarnya selalu
    100% mengikuti container tanpa tergantung algoritma table-layout. */
-.admin-grid { width: 100%; max-width: 980px; min-width: 640px; }
+.admin-grid { width: 100%; min-width: 640px; }
 .admin-grid-row {
   display: grid;
-  grid-template-columns: 18% 13% 25% 9% minmax(220px, 320px);
+  grid-template-columns: 18% 13% 25% 9% 1fr;
   gap: 10px;
   align-items: center;
   width: 100%;

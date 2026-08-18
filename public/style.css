@@ -598,6 +598,7 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
 }
 .admin-grid .row-actions button:hover { background: var(--surface-hover); border-color: var(--text-faint); }
 .admin-grid .row-actions button[data-quota] { width: 36px; flex: 0 0 36px; font-size: 15px; padding: 0; margin-right: 10px; }
+.quota-btn-icon { width: 20px; height: 20px; display: block; object-fit: contain; }
 .admin-grid .row-actions button.danger-btn:hover { border-color: var(--danger); }
 
 /* --- Footer --- */

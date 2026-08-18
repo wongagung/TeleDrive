@@ -67,7 +67,7 @@ async function loadUsers() {
       </div>
       <div data-label="Admin">${u.is_admin ? '✅' : '—'}</div>
       <div class="row-actions">
-        <button data-quota title="Ubah kuota">📊</button>
+        <button data-quota title="Ubah kuota"><img src="/icon-quota.png" alt="Kuota" class="quota-btn-icon" /></button>
         <button data-toggle-admin title="${u.is_admin ? 'Cabut admin' : 'Jadikan admin'}">${u.is_admin ? '⬇ Demote' : '⬆ Promote'}</button>
         <button data-reset-password title="Reset password user ini">🔑</button>
         <button data-delete title="Hapus user" class="danger-btn">🗑</button>

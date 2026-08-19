@@ -709,6 +709,7 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
   /* Rename disembunyikan khusus di HP buat file (bisa lewat desktop) --
      ngasih ruang buat tombol Bagikan (🔗) baru tanpa bikin 5 ikon dempet. */
   .row-actions button[data-rename-file] { display: none; }
+  .row-actions button[data-rename-folder] { display: none; }
   .row-actions { gap: 0; white-space: nowrap; }
   .row-actions button { padding: 6px 5px; font-size: 13px; }
 

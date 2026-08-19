@@ -1,4 +1,5 @@
 const fs = require('fs');
+const { PassThrough } = require('stream');
 const db = require('./db');
 const { getLocalFilePath } = require('./telegram');
 
@@ -104,4 +105,32 @@ function getDescendantIds(folderId, userId) {
   return ids;
 }
 
-module.exports = { PREVIEWABLE_MIME, parseRange, streamByteRange, streamFile, getDescendantIds };
+/** Bikin Readable stream isi file LENGKAP (bukan cuma satu rentang byte),
+ * dengan nyambung-nyambungin semua chunk Telegram secara berurutan.
+ * Dipakai buat archiver bikin ZIP -- streaming langsung, gak nunggu
+ * nampung seluruh file ke memori dulu (penting buat file gede). */
+function createFileStream(file) {
+  const chunks = JSON.parse(file.chunks).sort((a, b) => a.seq - b.seq);
+  const output = new PassThrough();
+
+  (async () => {
+    try {
+      for (const chunk of chunks) {
+        const localPath = await getLocalFilePath(chunk.tg_file_id);
+        await new Promise((resolve, reject) => {
+          const stream = fs.createReadStream(localPath);
+          stream.on('error', reject);
+          stream.on('end', resolve);
+          stream.pipe(output, { end: false });
+        });
+      }
+      output.end();
+    } catch (err) {
+      output.destroy(err);
+    }
+  })();
+
+  return output;
+}
+
+module.exports = { PREVIEWABLE_MIME, parseRange, streamByteRange, streamFile, createFileStream, getDescendantIds };

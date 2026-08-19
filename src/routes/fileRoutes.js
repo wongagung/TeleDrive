@@ -8,7 +8,8 @@ const { sendFileToTelegram, CHUNK_SIZE } = require('../uploadPipeline');
 const { requireAuth } = require('../middleware/authMiddleware');
 const { uploadLimiter, blockLimiter } = require('../middleware/rateLimiters');
 const { getQuotaBytes, getUsedBytes, assertWithinQuota, checkAndNotifyQuota } = require('../quota');
-const { PREVIEWABLE_MIME, streamFile, getDescendantIds } = require('../fileStreaming');
+const { PREVIEWABLE_MIME, streamFile, createFileStream, getDescendantIds } = require('../fileStreaming');
+const archiver = require('archiver');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -432,6 +433,73 @@ router.get('/thumbnail/:id', (req, res) => {
   res.setHeader('Content-Type', 'image/jpeg');
   res.setHeader('Cache-Control', 'private, max-age=31536000, immutable'); // thumbnail gak pernah berubah utk id yang sama
   res.end(file.thumbnail);
+});
+
+// ---------- Download folder / hasil pilihan sebagai ZIP ----------
+// Dipanggil langsung lewat <a href> (bukan fetch+blob) supaya browser yang
+// nge-handle progress download-nya sendiri, dan file besar gak numpuk di
+// memori browser dulu. Streaming langsung dari sisi server juga (lewat
+// archiver + createFileStream), gak nunggu bikin file .zip utuh di disk.
+router.get('/download-zip', async (req, res) => {
+  const fileIds = (req.query.file_ids || '').split(',').map((s) => parseInt(s, 10)).filter(Boolean);
+  const folderIds = (req.query.folder_ids || '').split(',').map((s) => parseInt(s, 10)).filter(Boolean);
+
+  if (!fileIds.length && !folderIds.length) {
+    return res.status(400).json({ error: 'Gak ada file/folder yang dipilih' });
+  }
+
+  const zipName = (req.query.name || 'VaultKu').replace(/[^a-zA-Z0-9 _.-]/g, '') || 'VaultKu';
+
+  res.setHeader('Content-Type', 'application/zip');
+  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(zipName)}.zip"`);
+
+  const archive = archiver('zip', { zlib: { level: 6 } });
+  archive.on('warning', (err) => console.warn('[download-zip] warning:', err.message));
+  archive.on('error', (err) => {
+    console.error('[download-zip] error:', err);
+    if (!res.headersSent) res.status(500).end();
+    else res.end();
+  });
+  archive.pipe(res);
+
+  const usedNames = new Set(); // hindari 2 entry ZIP dengan nama sama persis di root
+
+  function uniqueRootName(name) {
+    if (!usedNames.has(name)) { usedNames.add(name); return name; }
+    const dotIdx = name.lastIndexOf('.');
+    const base = dotIdx > 0 ? name.slice(0, dotIdx) : name;
+    const ext = dotIdx > 0 ? name.slice(dotIdx) : '';
+    for (let i = 1; ; i++) {
+      const candidate = `${base} (${i})${ext}`;
+      if (!usedNames.has(candidate)) { usedNames.add(candidate); return candidate; }
+    }
+  }
+
+  function addFolderToArchive(folderId, relativePath) {
+    const files = db.prepare('SELECT * FROM files WHERE user_id = ? AND folder_id = ?').all(req.user.id, folderId);
+    for (const file of files) {
+      archive.append(createFileStream(file), { name: `${relativePath}${file.original_name}` });
+    }
+    const subfolders = db.prepare('SELECT id, name FROM folders WHERE user_id = ? AND parent_id = ?').all(req.user.id, folderId);
+    for (const sub of subfolders) {
+      addFolderToArchive(sub.id, `${relativePath}${sub.name}/`);
+    }
+  }
+
+  // File yang dipilih langsung (bukan dari dalam folder) -- taruh di root ZIP.
+  for (const id of fileIds) {
+    const file = db.prepare('SELECT * FROM files WHERE id = ? AND user_id = ?').get(id, req.user.id);
+    if (file) archive.append(createFileStream(file), { name: uniqueRootName(file.original_name) });
+  }
+
+  // Folder yang dipilih -- jadi subfolder di root ZIP, isinya (termasuk
+  // subfolder di dalamnya) disusun ulang sesuai struktur aslinya.
+  for (const id of folderIds) {
+    const folder = db.prepare('SELECT id, name FROM folders WHERE id = ? AND user_id = ?').get(id, req.user.id);
+    if (folder) addFolderToArchive(folder.id, `${uniqueRootName(folder.name)}/`);
+  }
+
+  archive.finalize();
 });
 
 router.delete('/files/:id', async (req, res) => {

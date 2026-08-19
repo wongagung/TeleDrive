@@ -348,6 +348,7 @@ function renderTableView(data) {
       <td>${new Date(f.created_at).toLocaleDateString('id-ID')}</td>
       <td class="row-actions">
         <button data-share-folder title="Bagikan">🔗</button>
+        <button data-zip-folder title="Download ZIP">📦</button>
         <button data-rename-folder title="Rename">✏️</button>
         <button data-move-folder title="Pindah">📂</button>
         <button data-del-folder title="Hapus">🗑</button>
@@ -365,6 +366,10 @@ function renderTableView(data) {
     tr.querySelector('[data-share-folder]').onclick = (e) => {
       e.stopPropagation();
       openShareModal('folder', f.id, f.name);
+    };
+    tr.querySelector('[data-zip-folder]').onclick = (e) => {
+      e.stopPropagation();
+      downloadZip({ folderIds: [f.id], name: f.name });
     };
     tr.querySelector('[data-rename-folder]').onclick = async (e) => {
       e.stopPropagation();
@@ -452,6 +457,7 @@ function renderGridView(data) {
       <input type="checkbox" class="grid-card-check" data-folder-check="${f.id}" ${selectedFolders.has(f.id) ? 'checked' : ''} />
       <div class="grid-card-actions">
         <button data-share-folder title="Bagikan">🔗</button>
+        <button data-zip-folder title="Download ZIP">📦</button>
         <button data-rename-folder title="Rename">✏️</button>
         <button data-move-folder title="Pindah">📂</button>
         <button data-del-folder title="Hapus">🗑</button>
@@ -471,6 +477,10 @@ function renderGridView(data) {
     card.querySelector('[data-share-folder]').onclick = (e) => {
       e.stopPropagation();
       openShareModal('folder', f.id, f.name);
+    };
+    card.querySelector('[data-zip-folder]').onclick = (e) => {
+      e.stopPropagation();
+      downloadZip({ folderIds: [f.id], name: f.name });
     };
     card.querySelector('[data-rename-folder]').onclick = async (e) => {
       e.stopPropagation();
@@ -666,6 +676,12 @@ document.getElementById('bulkMoveBtn').onclick = () => {
   openMovePicker('bulk', null, `${selectedFiles.size + selectedFolders.size} item`);
 };
 
+document.getElementById('bulkZipBtn').onclick = () => {
+  const count = selectedFiles.size + selectedFolders.size;
+  const name = count === 1 ? 'VaultKu' : `VaultKu-${count}-item`;
+  downloadZip({ fileIds: [...selectedFiles], folderIds: [...selectedFolders], name });
+};
+
 async function downloadWithAuth(id, filename) {
   const res = await api(`/api/drive/download/${id}`);
   const blob = await res.blob();
@@ -674,6 +690,21 @@ async function downloadWithAuth(id, filename) {
   a.href = url; a.download = filename;
   document.body.appendChild(a); a.click(); a.remove();
   URL.revokeObjectURL(url);
+}
+
+/** Download folder (atau hasil pilihan bulk) sebagai satu file .zip.
+ * Lewat navigasi <a> langsung (bukan fetch+blob) -- biar progress
+ * download-nya ditangani browser sendiri & gak numpuk di memori buat
+ * folder yang isinya gede. Token lewat query param, sama kayak preview. */
+function downloadZip({ fileIds = [], folderIds = [], name = 'VaultKu' } = {}) {
+  const params = new URLSearchParams({ name, token: getToken() });
+  if (fileIds.length) params.set('file_ids', fileIds.join(','));
+  if (folderIds.length) params.set('folder_ids', folderIds.join(','));
+
+  const a = document.createElement('a');
+  a.href = `/api/drive/download-zip?${params.toString()}`;
+  a.download = `${name}.zip`;
+  document.body.appendChild(a); a.click(); a.remove();
 }
 
 document.getElementById('newFolderBtn').onclick = async () => {

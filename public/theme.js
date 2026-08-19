@@ -99,5 +99,15 @@
   // terbuka, tema ikut berubah otomatis tanpa perlu reload.
   setInterval(refreshAutoTheme, 60 * 1000);
 
+  // Daftarin service worker biar situs ini kepenuhin syarat "installable"
+  // (bisa di-"Add to Home Screen" / diinstall kayak app asli). Gagal
+  // daftar (mis. browser lama gak dukung) ya udah, situs tetap jalan
+  // normal, cuma gak dapet prompt install doang.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    });
+  }
+
   window.TeleDriveTheme = { setTheme, applyTheme, autoTheme };
 })();

@@ -1,6 +1,12 @@
 /* ============================================================
-   VaultKu — Premium Soft Depth Polish (Full Version)
-   Original + enhanced animations, glass, depth, hover lift
+   VaultKu — design tokens
+   Signature: tiap file dikategorikan otomatis ke Topic Telegram
+   (Dokumen/Gambar/Video/Audio/Arsip/Lainnya) -- warna kategori itu
+   dipakai konsisten di list, grid, dan badge sebagai identitas
+   visual utama, bukan sekadar dekorasi.
+
+   THEME: dark = default, [data-theme="light"] = override.
+   Tema diatur oleh theme.js (auto/light/dark, auto ikut jam lokal).
    ============================================================ */
 :root {
   color-scheme: dark;
@@ -29,16 +35,14 @@
   --cat-arsip: #d4915a;
   --cat-lainnya: #8b8fa3;
 
-  --radius-sm: 9px;
-  --radius-md: 13px;
-  --radius-lg: 18px;
-  --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.38);
-  --shadow-soft: 0 4px 16px rgba(0, 0, 0, 0.22);
-  --shadow-lift: 0 12px 40px rgba(0, 0, 0, 0.45);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.28);
+  --shadow-soft: 0 2px 10px rgba(0, 0, 0, 0.18);
 
-  --row-h: 50px;
-  --ease: cubic-bezier(.22, .68, .28, 1);
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --row-h: 48px;
+  --ease: cubic-bezier(.2, .7, .3, 1);
 }
 
 html[data-theme="light"] {
@@ -57,15 +61,16 @@ html[data-theme="light"] {
   --accent-text: #ffffff;
   --danger: #c83f3f;
   --danger-dim: rgba(200, 63, 63, .12);
-  --shadow-card: 0 10px 36px rgba(20, 25, 35, .10);
-  --shadow-soft: 0 4px 14px rgba(20, 25, 35, .06);
-  --shadow-lift: 0 16px 48px rgba(20, 25, 35, .14);
+  --shadow-card: 0 8px 30px rgba(20, 25, 35, .10);
+  --shadow-soft: 0 2px 10px rgba(20, 25, 35, .07);
 }
 
+/* Wajib: pastikan atribut HTML `hidden` selalu menang atas class apapun. */
 [hidden] { display: none !important; }
 
 *, *::before, *::after { box-sizing: border-box; }
 
+/* --- Background konsisten & penuh, di semua state/halaman --- */
 html, body { min-height: 100%; }
 html { background: var(--bg); }
 body {
@@ -80,145 +85,59 @@ body {
   background-attachment: fixed;
   color: var(--text);
   -webkit-font-smoothing: antialiased;
-  transition: background-color .3s var(--ease), color .3s var(--ease);
+  transition: background-color .2s var(--ease), color .2s var(--ease);
 }
 
-h1, h2, h3 { letter-spacing: -0.02em; font-weight: 700; }
+h1, h2, h3 { letter-spacing: -0.01em; font-weight: 700; }
 
-/* Cursor glow */
+/* --- Cursor glow (desktop only) --- */
 #cursorGlow {
   position: fixed;
   inset: 0;
   z-index: 2;
   pointer-events: none;
   opacity: 0;
-  transition: opacity .35s ease;
-  background: radial-gradient(300px circle at var(--gx, 50%) var(--gy, 50%), var(--accent-dim), transparent 70%);
+  transition: opacity .25s ease;
+  background: radial-gradient(280px circle at var(--gx, 50%) var(--gy, 50%), var(--accent-dim), transparent 70%);
 }
 @media (hover: hover) and (pointer: fine) {
   #cursorGlow.active { opacity: 1; }
 }
 
-/* Generic button */
+/* --- Generic button feel: consistent, theme-aware press/hover so
+   nothing ever renders as a flat black box regardless of theme. --- */
 button {
   font-family: inherit;
-  transition: background-color .2s var(--ease), color .2s var(--ease),
-    border-color .2s var(--ease), transform .15s var(--ease-out), box-shadow .2s var(--ease);
+  transition: background-color .15s var(--ease), color .15s var(--ease),
+    border-color .15s var(--ease), transform .1s var(--ease), box-shadow .15s var(--ease);
 }
-button:active { transform: scale(.97); }
-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:active { transform: scale(.96); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-/* ========== AUTH / LOGIN ========== */
-.auth-wrap {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  padding: 20px 16px;
-  animation: fadeIn 0.55s var(--ease-out);
-}
+/* --- Auth --- */
+.auth-wrap { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 16px; }
 .auth-card {
-  background: var(--surface);
-  padding: 40px 34px;
-  border-radius: var(--radius-lg);
-  width: min(380px, 100%);
-  box-shadow: var(--shadow-card);
-  border: 1px solid var(--border);
-  position: relative;
-  overflow: hidden;
-  animation: cardSlideUp 0.5s var(--ease-out);
+  background: var(--surface); padding: 36px 32px; border-radius: var(--radius-lg);
+  width: 340px; box-shadow: var(--shadow-card); border: 1px solid var(--border);
 }
-.auth-card::before {
-  content: "";
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, transparent, var(--accent), transparent);
-  opacity: 0.9;
-}
-.auth-card h1 {
-  font-size: 23px;
-  margin: 0 0 20px;
-  text-align: center;
-  background: linear-gradient(135deg, var(--text) 30%, var(--accent));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.tabs {
-  display: flex;
-  margin-bottom: 18px;
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  background: var(--bg);
-  padding: 4px;
-  gap: 4px;
-}
-.tab {
-  flex: 1;
-  padding: 10px;
-  background: transparent;
-  border: none;
-  border-radius: 7px;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: 13.5px;
-  font-weight: 600;
-  transition: all 0.22s var(--ease);
-}
-.tab.active {
-  background: var(--accent);
-  color: var(--accent-text);
-  box-shadow: 0 4px 14px var(--accent-dim);
-}
-.tab:not(.active):hover {
-  color: var(--text);
-  background: var(--surface-hover);
-}
-#authForm { display: flex; flex-direction: column; gap: 12px; }
+.auth-card h1 { font-size: 21px; margin: 0 0 22px; text-align: center; }
+.tabs { display: flex; margin-bottom: 18px; border-radius: var(--radius-sm); overflow: hidden; background: var(--bg); padding: 3px; gap: 3px; }
+.tab { flex: 1; padding: 9px; background: transparent; border: none; border-radius: 6px; color: var(--text-muted); cursor: pointer; font-size: 13px; font-weight: 600; }
+.tab.active { background: var(--accent); color: var(--accent-text); }
+#authForm { display: flex; flex-direction: column; gap: 11px; }
 #authForm input {
-  padding: 12px 14px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text);
-  font-size: 14.5px;
-  transition: border-color .2s var(--ease), box-shadow .2s var(--ease);
+  padding: 11px 13px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+  background: var(--bg); color: var(--text); font-size: 14px; transition: border-color .15s var(--ease);
 }
-#authForm input:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-dim);
-}
+#authForm input:focus { outline: none; border-color: var(--accent); }
 #authForm button {
-  padding: 12px;
-  border-radius: var(--radius-sm);
-  border: none;
-  background: var(--accent);
-  color: var(--accent-text);
-  font-weight: 700;
-  cursor: pointer;
-  font-size: 14.5px;
-  box-shadow: 0 4px 14px var(--accent-dim);
-  transition: all 0.22s var(--ease);
+  padding: 11px; border-radius: var(--radius-sm); border: none; background: var(--accent);
+  color: var(--accent-text); font-weight: 700; cursor: pointer; font-size: 14px;
 }
-#authForm button:hover {
-  background: var(--accent-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px var(--accent-dim);
-}
-.msg { color: var(--danger); font-size: 13px; text-align: center; min-height: 18px; margin-top: 6px; }
+#authForm button:hover { background: var(--accent-hover); }
+.msg { color: var(--danger); font-size: 13px; text-align: center; min-height: 18px; margin-top: 4px; }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes cardSlideUp {
-  from { opacity: 0; transform: translateY(22px) scale(0.97); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-/* ========== TOPBAR ========== */
+/* --- Topbar (grid: brand | search | right-side controls) --- */
 .topbar {
   display: flex;
   justify-content: space-between;
@@ -226,23 +145,22 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   flex-wrap: wrap;
   row-gap: 10px;
   gap: 22px;
-  padding: 13px 26px;
-  background: color-mix(in srgb, var(--surface) 90%, transparent);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  padding: 14px 28px;
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
   border-bottom: 1px solid var(--border);
   box-shadow: var(--shadow-soft);
-  position: sticky;
-  top: 0;
-  z-index: 20;
+  position: sticky; top: 0; z-index: 10;
 }
+/* Halaman dengan search box (index.html) dapat layout grid 3-kolom supaya
+   search-nya presisi di tengah; halaman tanpa search (admin.html, login)
+   otomatis tetap pakai flex space-between di atas. */
 .topbar:has(.topbar-search) {
   display: grid;
   align-items: center;
   grid-template-columns: minmax(170px, 1fr) minmax(280px, 520px) minmax(0, 1fr);
 }
 .topbar-brand { min-width: 0; display: flex; align-items: center; }
-.topbar-brand h1 { font-size: 16.5px; margin: 0; white-space: nowrap; display: flex; align-items: center; gap: 8px; }
+.topbar-brand h1 { font-size: 16px; margin: 0; white-space: nowrap; display: flex; align-items: center; gap: 8px; }
 .topbar-search { min-width: 0; width: 100%; display: flex; align-items: center; justify-content: center; }
 .topbar-right { min-width: 0; justify-self: end; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); flex-wrap: wrap; row-gap: 6px; justify-content: flex-end; }
 
@@ -253,18 +171,18 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 #logoutBtn:hover { border-color: var(--danger); color: var(--danger); }
 
 .quota-box { display: flex; flex-direction: column; gap: 4px; min-width: 150px; }
-.quota-bar { height: 5px; width: 150px; background: var(--bg); border-radius: 3px; overflow: hidden; }
+.quota-bar { height: 5px; width: 150px; background: var(--bg); border-radius: 3px; overflow: hidden; margin-bottom: 0; }
 .quota-text { font-size: 11px; color: var(--text-faint); }
 .bar-fill { background: var(--accent); transition: width .3s var(--ease); }
 .bar-fill.quota-warn { background: var(--danger); }
 
 .admin-link {
   color: var(--accent); text-decoration: none; font-size: 13px; font-weight: 600;
-  padding: 6px 10px; border-radius: var(--radius-sm); border: none; cursor: pointer; background: none;
+  padding: 6px 10px; border-radius: var(--radius-sm); border: none; cursor: pointer; background: none; font-family: inherit;
 }
 .admin-link:hover { background: var(--accent-dim); }
 
-/* Theme switcher */
+/* --- Theme switcher --- */
 .theme-control {
   display: inline-flex; align-items: center; gap: 2px; padding: 3px;
   border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface);
@@ -276,22 +194,21 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .theme-control button:hover { background: var(--surface-hover); color: var(--text); }
 .theme-control button.active { background: var(--accent-dim); color: var(--accent); font-weight: 700; }
 
-/* Search */
+/* --- Search --- */
 .search-box { position: relative; flex: 1; max-width: 320px; }
 .topbar-search .search-box { max-width: 520px; margin: 0; }
 .topbar-search-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); font-size: 14px; pointer-events: none; }
 #searchInput {
   width: 100%; height: 40px; padding: 0 14px 0 38px; box-sizing: border-box;
-  border-radius: 10px; border: 1px solid var(--border);
-  background: var(--surface); color: var(--text); font-size: 13px;
-  transition: border-color .15s var(--ease), box-shadow .15s var(--ease);
+  border-radius: 9px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); font-size: 13px; transition: border-color .15s var(--ease), box-shadow .15s var(--ease);
 }
 #searchInput:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
 .search-results { margin-bottom: 16px; }
 .search-info { font-size: 13px; color: var(--text-muted); margin-bottom: 10px; }
 .search-location { color: var(--text-faint); font-size: 12px; }
 
-/* Toolbar */
+/* --- Toolbar --- */
 .drive-wrap { max-width: 1440px; width: 100%; margin: 28px auto; padding: 0 28px; flex: 1 0 auto; padding-bottom: 48px; box-sizing: border-box; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; gap: 10px; flex-wrap: wrap; }
 .breadcrumb { font-size: 13px; color: var(--text-muted); white-space: nowrap; }
@@ -309,14 +226,12 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .actions button, .upload-btn {
   padding: 9px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border);
-  background: var(--surface); color: var(--text); cursor: pointer; font-size: 13px; font-weight: 600;
+  background: var(--surface); color: var(--text); cursor: pointer; font-size: 13px;
+  font-weight: 600;
 }
 .actions button:hover { background: var(--surface-hover); border-color: var(--text-faint); }
-.upload-btn {
-  background: var(--accent); color: var(--accent-text); border-color: var(--accent);
-  box-shadow: 0 4px 12px var(--accent-dim);
-}
-.upload-btn:hover { background: var(--accent-hover); transform: translateY(-1px); }
+.upload-btn { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.upload-btn:hover { background: var(--accent-hover); }
 
 .upload-menu-wrap { position: relative; }
 .upload-menu {
@@ -331,12 +246,12 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 }
 .upload-menu-item:hover { background: var(--surface-hover); }
 
-/* Drag & drop */
+/* --- Drag & drop upload --- */
 .drop-overlay {
   position: fixed; inset: 0; z-index: 200; padding: 24px;
   background: rgba(227, 160, 8, 0.10); backdrop-filter: blur(1px);
   display: flex; align-items: center; justify-content: center;
-  pointer-events: none;
+  pointer-events: none; /* biar drop event tetap tembus ke window, bukan ke overlay ini */
 }
 .drop-overlay-inner {
   border: 3px dashed var(--accent); border-radius: var(--radius-lg);
@@ -353,7 +268,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .view-toggle button.active { background: var(--accent); color: var(--accent-text); font-weight: 700; }
 .view-toggle button:hover:not(.active) { background: var(--surface-hover); color: var(--text); }
 
-/* Sort */
+/* Sort control */
 .sort-control { display: inline-flex; align-items: center; gap: 6px; }
 .sort-control select {
   height: 36px; padding: 0 28px 0 10px; border-radius: var(--radius-sm); border: 1px solid var(--border);
@@ -375,7 +290,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .select-all-control:hover { background: var(--surface-hover); color: var(--text); }
 .select-all-control input { width: 15px; height: 15px; margin: 0; accent-color: var(--accent); cursor: pointer; }
 
-/* Bulk toolbar */
+/* --- Bulk toolbar --- */
 .bulk-toolbar {
   display: flex; justify-content: space-between; align-items: center;
   background: var(--accent-dim); border: 1px solid var(--accent); border-radius: var(--radius-md);
@@ -390,7 +305,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .danger-btn { background: var(--danger-dim) !important; color: #ff9b9a !important; }
 html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
 
-/* Upload progress */
+/* --- Upload progress (list, satu kartu per file) --- */
 .upload-queue-panel { margin-bottom: 16px; }
 .upload-queue-list { display: flex; flex-direction: column; gap: 8px; }
 
@@ -402,9 +317,13 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
   background: var(--accent);
   transition: width .3s var(--ease);
 }
+/* Efek shimmer/stripe bergerak di dalam bar upload -- kasih kesan "lagi
+   jalan" walau progress-nya kebetulan diam sesaat (mis. lagi retry block
+   gagal). Di-scope ke .upload-row aja, quota bar di topbar gak perlu ini. */
 .upload-row .bar-fill::after {
   content: ''; position: absolute; inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,.35) 45%, rgba(255,255,255,.35) 55%, transparent);
+  background: linear-gradient(90deg,
+    transparent, rgba(255,255,255,.35) 45%, rgba(255,255,255,.35) 55%, transparent);
   background-size: 60px 100%;
   animation: upload-shimmer 1.1s linear infinite;
 }
@@ -455,7 +374,7 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
 .upload-row.state-failed .bar-fill::after,
 .upload-row.state-skipped .bar-fill::after { animation: none; content: none; }
 
-/* Category */
+/* --- Category badge --- */
 .cat-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 7px; flex-shrink: 0; }
 .cat-dokumen .cat-dot, .cat-badge.cat-dokumen { background: var(--cat-dokumen); }
 .cat-gambar .cat-dot, .cat-badge.cat-gambar { background: var(--cat-gambar); }
@@ -470,7 +389,12 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
 .grid-card.cat-arsip::before { background: var(--cat-arsip); }
 .grid-card.cat-lainnya::before { background: var(--cat-lainnya); }
 
-/* LIST VIEW */
+/* ============================================================
+   LIST VIEW (table) — satu tinggi baris tetap (--row-h) untuk semua
+   sel, jadi garis pemisah antar-baris selalu lurus & tidak "turun".
+   Nama file dibungkus <span> yang di-ellipsis; TD sendiri tetap
+   table-cell biasa (bukan flex) supaya tinggi baris tidak goyang.
+   ============================================================ */
 .table-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .drive-table {
   width: 100%;
@@ -509,7 +433,7 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
   border-bottom: 1px solid var(--border);
   overflow: hidden;
 }
-.drive-table tbody tr { transition: background-color .15s var(--ease); }
+.drive-table tbody tr { transition: background-color .12s var(--ease); }
 .drive-table tbody tr:hover { background: var(--surface-hover); }
 .drive-table tbody tr:last-child td { border-bottom: 1px solid var(--border); }
 
@@ -530,20 +454,18 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
 .row-actions button[data-del-folder]:hover, .row-actions button[data-del-file]:hover { color: var(--danger); background: var(--danger-dim); }
 .empty { text-align: center; color: var(--text-faint); padding: 48px 0; font-size: 14px; }
 
-/* GRID VIEW */
+/* ============================================================
+   GRID VIEW — kartu dengan tombol aksi yang SELALU pakai warna
+   tema (var(--surface)/var(--text)), bukan warna gelap hardcoded,
+   supaya tidak tampil hitam polos di light mode.
+   ============================================================ */
 .grid-view { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
 .grid-card {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
-  padding: 14px; padding-bottom: 52px; cursor: pointer;
-  transition: transform .2s var(--ease-out), border-color .15s var(--ease), background .15s var(--ease), box-shadow .2s var(--ease);
+  padding: 14px; padding-bottom: 52px; cursor: pointer; transition: transform .15s var(--ease), border-color .15s var(--ease), background .15s var(--ease);
   position: relative; overflow: hidden;
 }
-.grid-card:hover {
-  background: var(--surface-hover);
-  border-color: var(--text-faint);
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-lift);
-}
+.grid-card:hover { background: var(--surface-hover); border-color: var(--text-faint); transform: translateY(-2px); }
 .grid-card::before {
   content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--cat-color, var(--text-faint));
 }
@@ -590,18 +512,18 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
   .grid-card-actions { opacity: 1; visibility: visible; pointer-events: auto; transform: none; }
 }
 
-/* Modal */
+/* --- Modal --- */
 .modal-overlay {
-  position: fixed; inset: 0; background: rgba(10, 10, 14, 0.72); backdrop-filter: blur(6px);
+  position: fixed; inset: 0; background: rgba(10, 10, 14, 0.72); backdrop-filter: blur(2px);
   display: flex; align-items: center; justify-content: center; z-index: 100; padding: 16px;
-  animation: fadeIn 0.2s ease;
 }
 .modal-box {
   background: var(--surface); border-radius: var(--radius-lg); max-width: 90vw; max-height: 85vh;
-  display: flex; flex-direction: column; overflow: hidden; box-shadow: var(--shadow-lift);
+  display: flex; flex-direction: column; overflow: hidden; box-shadow: var(--shadow-card);
   border: 1px solid var(--border);
-  animation: cardSlideUp 0.3s var(--ease-out);
+  animation: modal-in .18s var(--ease);
 }
+@keyframes modal-in { from { opacity: 0; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: none; } }
 .modal-preview { width: 820px; }
 .modal-move { width: 420px; }
 .modal-header {
@@ -618,13 +540,8 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
 .modal-body .loading, .modal-body .error { color: var(--text-muted); font-size: 13px; }
 .modal-body .error { color: var(--danger); }
 .modal-footer { padding: 13px 18px; border-top: 1px solid var(--border); text-align: right; }
-.primary-btn {
-  background: var(--accent); color: var(--accent-text); border: none; padding: 9px 18px;
-  border-radius: var(--radius-sm); cursor: pointer; font-size: 13px; font-weight: 700;
-  box-shadow: 0 4px 12px var(--accent-dim);
-  transition: all 0.2s var(--ease);
-}
-.primary-btn:hover { background: var(--accent-hover); transform: translateY(-1px); }
+.primary-btn { background: var(--accent); color: var(--accent-text); border: none; padding: 9px 18px; border-radius: var(--radius-sm); cursor: pointer; font-size: 13px; font-weight: 700; }
+.primary-btn:hover { background: var(--accent-hover); }
 
 .move-list { padding: 8px 18px; max-height: 300px; overflow-y: auto; }
 .move-item { padding: 10px 8px; border-radius: var(--radius-sm); cursor: pointer; font-size: 14px; }
@@ -632,17 +549,12 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
 .empty-small { color: var(--text-faint); font-size: 13px; padding: 12px 0; text-align: center; }
 #moveBreadcrumb { padding: 8px 18px 0; }
 
-/* Admin */
+/* --- Admin panel --- */
 .section-title { font-size: 15px; margin: 26px 0 12px; color: var(--text); font-weight: 700; }
 .stats-row { display: flex; gap: 16px; margin-bottom: 8px; flex-wrap: wrap; }
 .stat-card {
   background: var(--surface); border-radius: var(--radius-md); padding: 18px 22px; flex: 1; min-width: 140px;
   border: 1px solid var(--border); box-shadow: var(--shadow-soft);
-  transition: transform 0.25s var(--ease-out), box-shadow 0.25s var(--ease);
-}
-.stat-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-lift);
 }
 .stat-value { font-size: 26px; font-weight: 800; color: var(--accent); }
 .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
@@ -650,6 +562,8 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
 .mini-bar-fill { height: 100%; min-width: 3px; background: var(--accent); border-radius: 3px; transition: width .3s var(--ease); }
 .mini-bar-text { font-size: 11px; color: var(--text-faint); }
 
+/* Daftar user admin — CSS Grid (bukan <table>), supaya lebarnya selalu
+   100% mengikuti container tanpa tergantung algoritma table-layout. */
 .admin-grid { width: 100%; min-width: 640px; }
 .admin-grid-row {
   display: grid;
@@ -659,6 +573,13 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
   width: 100%;
   box-sizing: border-box;
 }
+/* Wajib: default grid item punya min-width:auto, jadi konten yang gak
+   mau nyusut (mis. teks storage panjang) bisa maksa kolomnya sendiri
+   lebih lebar dari track yang udah dideklarasikan -- karena tiap baris
+   di sini grid-nya independen sendiri-sendiri (bukan 1 grid tabel yang
+   berbagi kolom), itu bikin batas kolom geser antar baris alias "gak
+   lurus". min-width:0 di sini yang mastiin semua baris punya lebar
+   kolom PERSIS sama walau isinya beda-beda. */
 .admin-grid-row > * { min-width: 0; }
 .admin-grid-head {
   padding: 0 10px; height: 40px; color: var(--text-faint); font-weight: 600;
@@ -681,7 +602,7 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
 .quota-btn-icon { width: 20px; height: 20px; display: block; object-fit: contain; }
 .admin-grid .row-actions button.danger-btn:hover { border-color: var(--danger); }
 
-/* Footer */
+/* --- Footer --- */
 .site-footer {
   max-width: 1440px; margin: 40px auto 0; padding: 20px 28px; flex-shrink: 0;
   display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
@@ -691,7 +612,7 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
 .site-footer a:hover { color: var(--accent); text-decoration: underline; }
 .site-footer .footer-links { display: flex; gap: 16px; }
 
-/* Share page */
+/* --- Halaman share publik --- */
 .share-badge {
   font-size: 12px; font-weight: 700; color: var(--accent); background: var(--accent-dim);
   padding: 5px 10px; border-radius: var(--radius-sm);
@@ -715,7 +636,7 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
 .share-file-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 .share-file-actions a, .share-file-actions button { text-decoration: none; }
 
-/* Telegram modal */
+/* --- Modal hubungkan Telegram --- */
 .telegram-link-body { padding: 18px; font-size: 14px; line-height: 1.5; color: var(--text); }
 .tg-status-linked { color: var(--success); margin-bottom: 14px; }
 .tg-action-btn { width: 100%; margin-top: 6px; }
@@ -727,7 +648,7 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
 }
 .tg-code-hint { margin-top: 10px; font-size: 12px; color: var(--text-faint); }
 
-/* Share modal */
+/* --- Modal Bagikan (share link) --- */
 .share-modal-body { padding: 18px; }
 .share-hint { font-size: 12.5px; color: var(--text-muted); line-height: 1.5; margin: 0 0 14px; }
 .share-link-row { display: flex; gap: 8px; margin-bottom: 14px; }
@@ -739,7 +660,7 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
 .share-link-row .primary-btn { flex-shrink: 0; }
 .share-revoke-btn { width: 100%; }
 
-/* Duplicate modal */
+/* --- Modal file duplikat --- */
 .duplicate-body { padding: 18px; }
 .duplicate-body > p { font-size: 13.5px; color: var(--text); line-height: 1.5; margin: 0 0 16px; }
 .duplicate-actions { display: flex; flex-direction: column; gap: 8px; }
@@ -750,7 +671,7 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
 .duplicate-actions button:hover { background: var(--surface-hover); }
 .duplicate-actions .primary-btn { border-color: var(--accent); }
 
-/* Responsive */
+/* --- Responsive --- */
 @media (max-width: 1100px) {
   .topbar { grid-template-columns: auto minmax(260px, 1fr) auto; gap: 14px; }
 }
@@ -773,37 +694,54 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
   .grid-view { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
   .drive-wrap { padding-bottom: 32px; padding-left: 12px; padding-right: 12px; }
 
+  /* File list: kolom Tanggal disembunyikan supaya tabel muat tanpa perlu
+     scroll ke samping di HP -- Nama, Ukuran, Aksi tetap keliatan penuh. */
   #mainTable, #searchResults .drive-table { min-width: 0; }
   #mainTable th:nth-child(3), #mainTable td:nth-child(3) { display: none; }
   #mainTable th:nth-child(1), #mainTable td:nth-child(1) { width: 42%; }
   #mainTable th:nth-child(2), #mainTable td:nth-child(2) { width: 18%; }
   #mainTable th:nth-child(4), #mainTable td:nth-child(4) { width: 40%; }
+  /* Tombol "Lihat" disembunyikan di HP -- tap nama filenya sendiri udah
+     buka preview, jadi gak perlu 2 tombol buat aksi yang sama. Ini juga
+     bikin ruang cukup buat 4 tombol sisanya (unduh/rename/pindah/hapus)
+     supaya gak ada yang kepotong td{overflow:hidden}. */
   .row-actions button[data-preview] { display: none; }
+  /* Rename disembunyikan khusus di HP buat file (bisa lewat desktop) --
+     ngasih ruang buat tombol Bagikan (🔗) baru tanpa bikin 5 ikon dempet. */
   .row-actions button[data-rename-file] { display: none; }
   .row-actions button[data-rename-folder] { display: none; }
   .row-actions { gap: 0; white-space: nowrap; }
   .row-actions button { padding: 6px 5px; font-size: 13px; }
 
+  /* Toolbar: tiap grup (breadcrumb+nav, lalu tombol aksi) ambil satu baris
+     penuh sendiri-sendiri kalau kepaksa wrap, bukan numpuk berantakan. */
   .toolbar-left, .actions { width: 100%; }
   .actions { justify-content: flex-start; row-gap: 8px; }
   .actions button, .upload-btn, .sort-control select, .sort-control button, .select-all-control, .nav-btn {
     padding-left: 10px; padding-right: 10px; font-size: 12px;
   }
-  .select-all-control span { display: none; }
+  .select-all-control span { display: none; } /* cuma checkbox, "Pilih semua" disembunyikan biar hemat tempat */
 
+  /* Hasil pencarian: kolom lokasi disembunyikan di HP supaya gak sesak
+     (info paling penting -- nama & ukuran -- tetap kelihatan penuh). */
   #searchResults .drive-table { min-width: 0; }
   #searchResults .drive-table th:nth-child(2), #searchResults .drive-table td:nth-child(2) { display: none; }
   #searchResults .drive-table th:nth-child(1), #searchResults .drive-table td:nth-child(1) { width: 56%; }
   #searchResults .drive-table th:nth-child(3), #searchResults .drive-table td:nth-child(3) { width: 24%; }
   #searchResults .drive-table th:nth-child(4), #searchResults .drive-table td:nth-child(4) { width: 20%; }
 
+  /* Bulk toolbar (waktu ada file terpilih) -- biar tombolnya gak dempet
+     kalau layar sempit. */
   .bulk-toolbar { flex-wrap: wrap; row-gap: 10px; }
   .bulk-actions { width: 100%; }
   .bulk-actions button { flex: 1; }
 
+  /* Grid view: target sentuh tombol aksi digedein dikit buat jari. */
   .grid-card-actions { height: 38px; }
   .grid-card-actions button { height: 36px; font-size: 13px; }
 
+  /* Admin panel: baris tabel jadi KARTU vertikal (label di atas nilai),
+     bukan grid horizontal yang dipaksa muat / perlu di-scroll. */
   #adminTableScroll { overflow-x: visible; }
   .admin-grid { min-width: 0; }
   .admin-grid-head { display: none; }

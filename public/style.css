@@ -936,3 +936,36 @@ html[data-theme="light"] #telegramUnlinkBtn {
   background: rgba(200, 63, 63, .10) !important;
   border-color: rgba(200, 63, 63, .35) !important;
 }
+/* Tombol Putuskan Koneksi - Telegram */
+#tgUnlinkBtn,
+button.danger-btn.tg-action-btn,
+.tg-action-btn.danger-btn {
+  width: 100% !important;
+  margin-top: 14px !important;
+  padding: 12px 16px !important;
+  border-radius: 11px !important;
+  border: 1px solid rgba(225, 85, 84, 0.45) !important;
+  background: rgba(225, 85, 84, 0.14) !important;
+  color: #ff8e8d !important;
+  font-size: 13.5px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  box-shadow: none !important;
+  transition: all .2s ease !important;
+}
+
+#tgUnlinkBtn:hover,
+button.danger-btn.tg-action-btn:hover {
+  background: rgba(225, 85, 84, 0.22) !important;
+  border-color: #e15554 !important;
+  color: #ffb3b2 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 18px rgba(225, 85, 84, 0.2) !important;
+}
+
+html[data-theme="light"] #tgUnlinkBtn,
+html[data-theme="light"] .tg-action-btn.danger-btn {
+  background: rgba(200, 63, 63, 0.10) !important;
+  border-color: rgba(200, 63, 63, 0.40) !important;
+  color: #c83f3f !important;
+}

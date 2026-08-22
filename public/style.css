@@ -854,3 +854,85 @@ body {
   transform: translateY(-2px) !important;
   box-shadow: 0 6px 16px rgba(0,0,0,.10) !important;
 }
+/* ===== Tombol danger modal (Nonaktifkan Link / Putuskan Koneksi) ===== */
+
+/* Tombol revoke share */
+.share-revoke-btn,
+button.share-revoke-btn,
+#shareRevokeBtn,
+.share-modal-body button:not(.primary-btn):not(.tab) {
+  width: 100% !important;
+  margin-top: 4px !important;
+  padding: 12px 16px !important;
+  border-radius: 11px !important;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border)) !important;
+  background: var(--danger-dim) !important;
+  color: var(--danger) !important;
+  font-size: 13.5px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  box-shadow: none !important;
+  transition: all .2s cubic-bezier(.22,.68,.28,1) !important;
+}
+
+.share-revoke-btn:hover,
+button.share-revoke-btn:hover,
+#shareRevokeBtn:hover,
+.share-modal-body button:not(.primary-btn):not(.tab):hover {
+  background: color-mix(in srgb, var(--danger) 18%, transparent) !important;
+  border-color: var(--danger) !important;
+  color: var(--danger) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 16px var(--danger-dim) !important;
+}
+
+.share-revoke-btn:active,
+#shareRevokeBtn:active {
+  transform: scale(.98) !important;
+}
+
+/* Tombol Putuskan Koneksi (Telegram modal) */
+.telegram-link-body button:not(.primary-btn):not(.tg-action-btn),
+#telegramUnlinkBtn,
+button[data-unlink],
+.tg-unlink-btn {
+  width: 100% !important;
+  margin-top: 10px !important;
+  padding: 12px 16px !important;
+  border-radius: 11px !important;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border)) !important;
+  background: var(--danger-dim) !important;
+  color: var(--danger) !important;
+  font-size: 13.5px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  transition: all .2s cubic-bezier(.22,.68,.28,1) !important;
+}
+
+.telegram-link-body button:not(.primary-btn):not(.tg-action-btn):hover,
+#telegramUnlinkBtn:hover,
+button[data-unlink]:hover,
+.tg-unlink-btn:hover {
+  background: color-mix(in srgb, var(--danger) 18%, transparent) !important;
+  border-color: var(--danger) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 16px var(--danger-dim) !important;
+}
+
+/* Light theme: biar teks danger tetap kebaca */
+html[data-theme="light"] .share-revoke-btn,
+html[data-theme="light"] #shareRevokeBtn,
+html[data-theme="light"] .telegram-link-body button:not(.primary-btn):not(.tg-action-btn),
+html[data-theme="light"] #telegramUnlinkBtn {
+  color: #c83f3f !important;
+  background: rgba(200, 63, 63, .10) !important;
+  border-color: rgba(200, 63, 63, .35) !important;
+}

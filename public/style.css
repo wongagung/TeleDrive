@@ -786,3 +786,71 @@ html[data-theme="light"] .danger-btn { color: var(--danger) !important; }
   .admin-grid .row-actions button[data-quota],
   .admin-grid .row-actions button[data-toggle-admin] { width: auto; flex: 1; margin-right: 0; }
 }
+/* ===== DRIVE SUPER VISIBLE POLISH ===== */
+
+/* Background drive sedikit beda */
+body {
+  background:
+    radial-gradient(900px 500px at 80% 0%, rgba(227,160,8,.10), transparent 55%),
+    radial-gradient(700px 400px at 10% 100%, rgba(91,158,225,.08), transparent 50%),
+    var(--bg) !important;
+}
+
+/* Topbar lebih jelas bedanya */
+.topbar {
+  background: color-mix(in srgb, var(--surface) 80%, transparent) !important;
+  backdrop-filter: blur(20px) saturate(1.2) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(1.2) !important;
+  box-shadow: 0 12px 32px rgba(0,0,0,.14) !important;
+  border-bottom: 1px solid transparent !important;
+  border-image: linear-gradient(90deg, transparent, var(--accent), transparent) 1 !important;
+}
+
+/* Brand accent */
+.topbar-brand h1 {
+  background: linear-gradient(135deg, var(--text), var(--accent)) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+}
+
+/* Upload button lebih “pop” */
+.upload-btn {
+  box-shadow: 0 8px 22px rgba(227,160,8,.35) !important;
+  border-radius: 12px !important;
+  font-weight: 800 !important;
+}
+.upload-btn:hover {
+  transform: translateY(-3px) scale(1.02) !important;
+  box-shadow: 0 14px 32px rgba(227,160,8,.45) !important;
+}
+
+/* List row seperti kartu saat hover */
+.drive-table tbody tr:hover {
+  background: var(--surface) !important;
+  box-shadow: 0 6px 20px rgba(0,0,0,.08) !important;
+  outline: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+/* Grid jauh lebih hidup */
+.grid-card {
+  border-radius: 16px !important;
+  box-shadow: 0 4px 14px rgba(0,0,0,.06) !important;
+}
+.grid-card:hover {
+  transform: translateY(-6px) scale(1.02) !important;
+  box-shadow: 0 20px 50px rgba(0,0,0,.18) !important;
+  border-color: var(--accent) !important;
+}
+
+/* Toolbar buttons */
+.actions button,
+.nav-btn,
+.select-all-control {
+  border-radius: 11px !important;
+}
+.actions button:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 16px rgba(0,0,0,.10) !important;
+}

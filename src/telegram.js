@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { pathToFileURL } = require('url');
 require('dotenv').config();
 const db = require('./db');
 
@@ -91,7 +92,12 @@ async function getOrCreateTopic(category) {
 
 /**
  * Upload satu chunk (file di disk lokal) ke grup Telegram, di dalam Topic
- * sesuai kategorinya, lewat multipart upload beneran (bukan path string).
+ * sesuai kategorinya.
+ *
+ * Pada Local Bot API Server, file lokal dikirim sebagai file URI (`file:///...`)
+ * sehingga isi chunk TIDAK perlu dikirim ulang melalui HTTP multipart dari Node
+ * ke telegram-bot-api. Ini menghindari timeout 500 detik pada koneksi HTTP dan
+ * membuat penggunaan RAM tetap rendah untuk file berukuran ratusan MB/GB.
  *
  * @param {string} localFilePath
  * @param {string} displayName
@@ -100,26 +106,23 @@ async function getOrCreateTopic(category) {
  */
 async function uploadChunk(localFilePath, displayName, threadId) {
   const absPath = path.resolve(localFilePath);
+  if (!fs.existsSync(absPath)) {
+    throw new Error(`File chunk tidak ditemukan: ${absPath}`);
+  }
 
-  // PENTING: Local Bot API Server TIDAK menerima path lokal sebagai string
-  // biasa di field `document` -- itu cuma didukung di sisi getFile (output),
-  // bukan sendDocument (input). Yang benar, filenya harus dikirim sebagai
-  // multipart upload beneran. `fs.openAsBlob` bikin Blob yang dibaca
-  // langsung dari disk (streaming), jadi tetap aman buat file besar tanpa
-  // harus load semuanya ke RAM dulu.
-  const blob = await fs.openAsBlob(absPath);
+  const fileUri = pathToFileURL(absPath).href;
+  const payload = {
+    chat_id: GROUP_ID,
+    document: fileUri,
+    caption: displayName,
+  };
 
-  const form = new FormData();
-  form.append('chat_id', GROUP_ID);
-  form.append('document', blob, displayName);
-  form.append('caption', displayName);
-  if (threadId) form.append('message_thread_id', String(threadId));
+  if (threadId) payload.message_thread_id = Number(threadId);
 
-  // JANGAN set Content-Type manual -- fetch/undici otomatis generate
-  // "multipart/form-data; boundary=..." yang benar dari FormData.
   const res = await fetch(`${BASE}/sendDocument`, {
     method: 'POST',
-    body: form,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
   });
 
   const data = await res.json();
@@ -130,9 +133,7 @@ async function uploadChunk(localFilePath, displayName, threadId) {
   // Biasanya file yang dikirim lewat sendDocument balik di result.document,
   // TAPI untuk beberapa video (mis. MP4 dari GoPro/action-cam), Telegram
   // kadang malah nge-klasifikasi otomatis & balikinnya di result.video.
-  // Cek semua kemungkinan field, bukan asumsi selalu "document" doang --
-  // itu penyebab error "Cannot read properties of undefined (reading
-  // 'file_id')" yang muncul khusus buat file video tertentu.
+  // Cek semua kemungkinan field, bukan asumsi selalu "document" doang.
   const media = data.result.document || data.result.video || data.result.animation || data.result.audio;
   if (!media) {
     throw new Error(`Telegram sendDocument: respons tidak mengandung file (result: ${JSON.stringify(data.result)})`);

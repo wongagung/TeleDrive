@@ -1,10 +1,32 @@
 const fs = require('fs');
 const path = require('path');
+const { pipeline } = require('stream/promises');
 const db = require('./db');
 const { uploadChunk, classifyCategory, getOrCreateTopic } = require('./telegram');
 const { generateVideoThumbnail, generateImageThumbnail } = require('./videoThumbnail');
 
-const CHUNK_SIZE = (parseInt(process.env.CHUNK_SIZE_MB, 10) || 1900) * 1024 * 1024;
+// 500 MB default: safely below Telegram Local Bot API's 2000 MB per-upload
+// limit and keeps each Telegram operation bounded even on slower connections.
+const CHUNK_SIZE = (parseInt(process.env.CHUNK_SIZE_MB, 10) || 500) * 1024 * 1024;
+
+/**
+ * Copy a byte range from a large source file to a temporary chunk without
+ * allocating a giant Buffer. This keeps RAM usage small even for multi-GB files.
+ */
+async function copyFileRange(sourcePath, destinationPath, start, length) {
+  if (length <= 0) throw new Error('Panjang chunk harus lebih dari 0');
+
+  await pipeline(
+    fs.createReadStream(sourcePath, {
+      start,
+      end: start + length - 1,
+      highWaterMark: 8 * 1024 * 1024,
+    }),
+    fs.createWriteStream(destinationPath, {
+      flags: 'w',
+    })
+  );
+}
 
 /**
  * Kirim satu file (sudah utuh di disk lokal) ke Telegram, dipecah otomatis
@@ -33,29 +55,28 @@ async function sendFileToTelegram({ localPath, originalName, totalSize, mimeType
       const result = await uploadChunk(localPath, originalName, threadId);
       chunks.push({ seq: 0, tg_file_id: result.file_id, message_id: result.message_id, size: totalSize });
     } else {
-      const fh = fs.openSync(localPath, 'r');
       let offset = 0;
       let seq = 0;
-      const buf = Buffer.alloc(CHUNK_SIZE);
 
-      try {
-        while (offset < totalSize) {
-          const bytesToRead = Math.min(CHUNK_SIZE, totalSize - offset);
-          const bytesRead = fs.readSync(fh, buf, 0, bytesToRead, offset);
-          const chunkPath = path.join(path.dirname(localPath), `${path.basename(localPath)}.part${seq}`);
-          fs.writeFileSync(chunkPath, buf.subarray(0, bytesRead));
-          tempChunkPaths.push(chunkPath);
+      while (offset < totalSize) {
+        const bytesToRead = Math.min(CHUNK_SIZE, totalSize - offset);
+        const chunkPath = path.join(path.dirname(localPath), `${path.basename(localPath)}.part${seq}`);
+        tempChunkPaths.push(chunkPath);
 
-          const result = await uploadChunk(chunkPath, `${originalName}.part${seq}`, threadId);
-          chunks.push({ seq, tg_file_id: result.file_id, message_id: result.message_id, size: bytesRead });
+        await copyFileRange(localPath, chunkPath, offset, bytesToRead);
 
-          fs.unlinkSync(chunkPath);
-          tempChunkPaths.pop();
-          offset += bytesRead;
-          seq += 1;
+        const actualSize = fs.statSync(chunkPath).size;
+        if (actualSize !== bytesToRead) {
+          throw new Error(`Ukuran chunk tidak sesuai: expected=${bytesToRead}, actual=${actualSize}`);
         }
-      } finally {
-        fs.closeSync(fh);
+
+        const result = await uploadChunk(chunkPath, `${originalName}.part${seq}`, threadId);
+        chunks.push({ seq, tg_file_id: result.file_id, message_id: result.message_id, size: actualSize });
+
+        fs.unlinkSync(chunkPath);
+        tempChunkPaths.pop();
+        offset += actualSize;
+        seq += 1;
       }
     }
 
